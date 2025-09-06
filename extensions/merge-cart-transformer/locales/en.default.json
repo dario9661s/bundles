@@ -1,4 +1,4 @@
 {
-  "name": "omosa-merge-transformer",
+  "name": "mergely-cart-transformer",
   "description": "Merge cart items based on line item properties."
 }

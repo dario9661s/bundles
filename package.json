@@ -1,5 +1,5 @@
 {
-  "name": "omosa-merge-function",
+  "name": "mergely-product-bundler",
   "private": true,
   "scripts": {
     "build": "remix vite:build",
@@ -64,5 +64,5 @@
   ],
   "resolutions": {},
   "overrides": {},
-  "author": "tobiasdierich"
+  "author": ""
 }

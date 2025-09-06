@@ -1,29 +1,17 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "b4792aa4a0204428b3a0162e4e3db103"
-name = "omosa-merge-function-dev"
-handle = "omosa-merge-function-dev"
-application_url = "https://arch-gzip-edinburgh-reynolds.trycloudflare.com"
+client_id = "bd5bad85ad477b8cbb9036bd6d7da30d"
+name = "Bundles Adsgun"
+handle = "bundles-adsgun"
+application_url = "https://wy-decorating-utils-exotic.trycloudflare.com"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "codelayer-test-shop-tobi.myshopify.com"
 include_config_on_deploy = true
 
-[access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_cart_transforms"
-
-[auth]
-redirect_urls = [
-  "https://arch-gzip-edinburgh-reynolds.trycloudflare.com/auth/callback",
-  "https://arch-gzip-edinburgh-reynolds.trycloudflare.com/auth/shopify/callback",
-  "https://arch-gzip-edinburgh-reynolds.trycloudflare.com/api/auth/callback"
-]
-
 [webhooks]
-api_version = "2024-07"
+api_version = "2025-07"
 
   [[webhooks.subscriptions]]
   uri = "/webhooks/customers/data_request"
@@ -40,6 +28,17 @@ api_version = "2024-07"
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_cart_transforms,read_products,write_cart_transforms,write_products"
+
+[auth]
+redirect_urls = [
+  "https://wy-decorating-utils-exotic.trycloudflare.com/auth/callback",
+  "https://wy-decorating-utils-exotic.trycloudflare.com/auth/shopify/callback",
+  "https://wy-decorating-utils-exotic.trycloudflare.com/api/auth/callback"
+]
 
 [pos]
 embedded = false

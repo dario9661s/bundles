@@ -10,12 +10,12 @@ Backend-first development: APIs ready → Frontend consumes → Clean separation
 ### Day 1: Foundation & Infrastructure Setup
 **Morning: Get Existing App Running**
 - [x] Dev store created
-- [ ] Clone repository & install dependencies (15 mins)
-- [ ] Configure .env file with Shopify credentials
-- [ ] Run app locally: `npm run dev`
-- [ ] Fix any startup errors
-- [ ] Verify connection to dev store
-- [ ] Test basic app installation flow
+- [x] Clone repository & install dependencies (15 mins)
+- [x] Configure .env file with Shopify credentials
+- [x] Run app locally: `npm run dev`
+- [x] Fix database connection (switched to SQLite temporarily)
+- [x] Verify connection to dev store
+- [x] Test basic app installation flow
 
 **Afternoon: Clean Up Legacy Code**
 - [ ] Review existing MergeConfiguration implementation
@@ -25,10 +25,10 @@ Backend-first development: APIs ready → Frontend consumes → Clean separation
 - [ ] Check CLEANUP_CHECKLIST.md for guidance
 
 **End of Day: Infrastructure Setup**
-- [ ] Supabase setup (15 mins)
-- [ ] Database migrations (15 mins)
+- [x] Supabase setup (15 mins)
+- [x] Database migrations (15 mins)
 - [ ] Vercel deployment (30 mins)
-- [ ] Environment variables configured
+- [x] Environment variables configured
 
 ### Day 2: Bundle CRUD API
 **Morning: Database & Models**
