@@ -1,0 +1,66 @@
+fragment Line on CartLine {
+  id
+  quantity
+  lineItemProperty1: attribute(key: $lineItemProperty1) {
+    value
+  }
+  lineItemProperty2: attribute(key: $lineItemProperty2) {
+    value
+  }
+  lineItemProperty3: attribute(key: $lineItemProperty3) {
+    value
+  }
+  lineItemProperty4: attribute(key: $lineItemProperty4) {
+    value
+  }
+  lineItemProperty5: attribute(key: $lineItemProperty5) {
+    value
+  }
+  lineItemProperty6: attribute(key: $lineItemProperty6) {
+    value
+  }
+  lineItemProperty7: attribute(key: $lineItemProperty7) {
+    value
+  }
+  lineItemProperty8: attribute(key: $lineItemProperty8) {
+    value
+  }
+  lineItemProperty9: attribute(key: $lineItemProperty9) {
+    value
+  }
+  lineItemProperty10: attribute(key: $lineItemProperty10) {
+    value
+  }
+  merchandise {
+    ... on ProductVariant {
+      id
+      product {
+        title
+      }
+    }
+  }
+}
+
+query RunInput(
+  $lineItemProperty1: String,
+  $lineItemProperty2: String,
+  $lineItemProperty3: String,
+  $lineItemProperty4: String,
+  $lineItemProperty5: String,
+  $lineItemProperty6: String,
+  $lineItemProperty7: String,
+  $lineItemProperty8: String,
+  $lineItemProperty9: String,
+  $lineItemProperty10: String
+) {
+  cart {
+    lines {
+      ...Line
+    }
+  }
+  cartTransform {
+    mergeConfigurations: metafield(namespace: "$app", key: "merge-configurations") {
+      value
+    }
+  }
+}

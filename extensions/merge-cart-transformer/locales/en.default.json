@@ -1,0 +1,4 @@
+{
+  "name": "omosa-merge-transformer",
+  "description": "Merge cart items based on line item properties."
+}

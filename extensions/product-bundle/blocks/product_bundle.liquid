@@ -1,0 +1,31 @@
+<div class="mergely__product-bundle">
+  <div class="field">
+    <input class="field__input" type="text" id="product-bundle-input-{{ section.id }}" data-property="{{ block.settings.line_item_property }}" />
+    <label class="field__label" for="product-bundle-input-{{ section.id }}">{{ block.settings.label }}</label>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Product Bundle",
+  "target": "section",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "javascript": "product_bundle.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "label",
+      "label": "Label"
+    },
+    {
+      "type": "text",
+      "id": "line_item_property",
+      "label": "Line Item Property Name",
+      "info": "Use the same name you have used in your merge configuration"
+    }
+  ]
+}
+{% endschema %}
+
