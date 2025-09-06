@@ -137,6 +137,16 @@ export interface DeleteBundleResponse {
   success: boolean;
 }
 
+// Bundle duplication types
+export interface DuplicateBundleRequest {
+  title: string; // New title for the duplicate
+  status?: "active" | "draft"; // Default: "draft"
+}
+
+export interface DuplicateBundleResponse {
+  bundle: Bundle;
+}
+
 // Error handling types
 export interface ErrorResponse {
   error: true;

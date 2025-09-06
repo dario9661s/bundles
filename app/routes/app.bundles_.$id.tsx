@@ -1,37 +1,33 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
-import { Page, Layout, Card, EmptyState, Spinner, Box, BlockStack, Text } from "@shopify/polaris";
+import { useLoaderData, useSubmit, useNavigate, useActionData } from "@remix-run/react";
+import { Page, Layout, Card, EmptyState, Modal, TextField, Select, FormLayout, Box, InlineError } from "@shopify/polaris";
+import { ArrowLeftIcon } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
-import { BundleForm } from "~/components/BundleForm";
-import type { Bundle, UpdateBundleRequest, GetBundleResponse, ErrorResponse } from "~/types/bundle";
+import { BundleDetail } from "~/components/BundleDetail";
+import { getBundle, deleteBundle, duplicateBundle } from "~/services/bundle-metaobject.server";
+import type { Bundle } from "~/types/bundle";
 import { useCallback, useState, useEffect } from "react";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
   const { id } = params;
 
   if (!id) {
     throw new Response("Bundle ID is required", { status: 400 });
   }
 
-  try {
-    const response = await fetch(`/api/bundles/${id}`);
-    const data = await response.json();
+  // Decode the ID in case it's URL-encoded
+  const decodedId = decodeURIComponent(id);
 
-    if (!response.ok) {
-      const error = data as ErrorResponse;
-      if (response.status === 404) {
-        throw new Response("Bundle not found", { status: 404 });
-      }
-      return json(
-        { error: error.message || "Failed to load bundle" },
-        { status: response.status }
-      );
+  try {
+    const bundle = await getBundle(admin, decodedId);
+    
+    if (!bundle) {
+      throw new Response("Bundle not found", { status: 404 });
     }
 
-    const bundleData = data as GetBundleResponse;
-    return json({ bundle: bundleData.bundle });
+    return json({ bundle });
   } catch (error) {
     if (error instanceof Response) {
       throw error;
@@ -45,57 +41,49 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
   const { id } = params;
 
   if (!id) {
     return json({ error: "Bundle ID is required" }, { status: 400 });
   }
   
+  // Decode the ID in case it's URL-encoded
+  const decodedId = decodeURIComponent(id);
+  
   try {
     const formData = await request.formData();
     const action = formData.get("_action");
 
     if (action === "delete") {
-      const response = await fetch(`/api/bundles/${id}`, {
-        method: "DELETE",
-      });
+      const result = await deleteBundle(admin, decodedId);
 
-      if (!response.ok) {
-        const data = await response.json();
+      if (!result.success) {
         return json(
-          { error: data.message || "Failed to delete bundle" },
-          { status: response.status }
+          { error: result.errors.join(", ") || "Failed to delete bundle" },
+          { status: 400 }
         );
       }
 
       return redirect("/app/bundles");
     }
 
-    // Update action
-    const bundleData = JSON.parse(formData.get("data") as string) as UpdateBundleRequest;
-
-    const response = await fetch(`/api/bundles/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(bundleData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      const error = data as ErrorResponse;
-      return json(
-        { error: error.message || "Failed to update bundle" },
-        { status: response.status }
-      );
+    if (action === "duplicate") {
+      const title = formData.get("title") as string;
+      const status = formData.get("status") as "active" | "draft" | undefined;
+      
+      const result = await duplicateBundle(admin, decodedId, title, status || "draft");
+      
+      if (!result.bundle) {
+        return json({ error: result.errors.join(", ") || "Failed to duplicate bundle" }, { status: 400 });
+      }
+      
+      return json({ duplicatedBundleId: result.bundle.id });
     }
 
-    return json({ success: true });
+    return json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
-    console.error("Failed to update bundle:", error);
+    console.error("Failed to process action:", error);
     return json(
       { error: "An unexpected error occurred. Please try again." },
       { status: 500 }
@@ -103,43 +91,31 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
 };
 
-export default function EditBundlePage() {
-  const data = useLoaderData<typeof loader>();
+export default function BundleDetailPage() {
+  const { bundle } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const submit = useSubmit();
-  const navigation = useNavigation();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
-  const isSubmitting = navigation.state !== "idle";
+  const navigate = useNavigate();
+  const [duplicating, setDuplicating] = useState(false);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateTitle, setDuplicateTitle] = useState("");
+  const [duplicateStatus, setDuplicateStatus] = useState<"active" | "draft">("draft");
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
-  if ("error" in data) {
-    return (
-      <Page
-        title="Edit Bundle"
-        breadcrumbs={[{ content: "Bundles", url: "/app/bundles" }]}
-      >
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <EmptyState
-                heading="Error loading bundle"
-                image=""
-              >
-                <p>{data.error}</p>
-              </EmptyState>
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </Page>
-    );
-  }
+  // Handle successful duplication
+  useEffect(() => {
+    if (actionData && 'duplicatedBundleId' in actionData) {
+      navigate(`/app/bundles/${encodeURIComponent(actionData.duplicatedBundleId)}`);
+    }
+    if (actionData && 'error' in actionData) {
+      setDuplicateError(actionData.error);
+      setDuplicating(false);
+    }
+  }, [actionData, navigate]);
 
-  const { bundle } = data;
-
-  const handleSubmit = useCallback(async (data: UpdateBundleRequest) => {
-    const formData = new FormData();
-    formData.append("data", JSON.stringify(data));
-    submit(formData, { method: "post" });
-  }, [submit]);
+  const handleEdit = useCallback(() => {
+    navigate(`/app/bundles/${encodeURIComponent(bundle.id)}/edit`);
+  }, [navigate, bundle.id]);
 
   const handleDelete = useCallback(() => {
     if (window.confirm(`Are you sure you want to delete "${bundle.title}"? This action cannot be undone.`)) {
@@ -149,33 +125,125 @@ export default function EditBundlePage() {
     }
   }, [submit, bundle.title]);
 
-  const handleCancel = useCallback(() => {
-    window.history.back();
+  const handleDuplicateClick = useCallback(() => {
+    setDuplicateTitle(`${bundle.title} - Copy`);
+    setDuplicateStatus("draft");
+    setDuplicateError(null);
+    setDuplicateModalOpen(true);
+  }, [bundle.title]);
+
+  const handleDuplicateConfirm = useCallback(() => {
+    if (!duplicateTitle.trim()) {
+      setDuplicateError("Title is required");
+      return;
+    }
+    
+    setDuplicating(true);
+    setDuplicateError(null);
+    
+    const formData = new FormData();
+    formData.append("_action", "duplicate");
+    formData.append("title", duplicateTitle);
+    formData.append("status", duplicateStatus);
+    
+    submit(formData, { 
+      method: "post",
+      navigate: false,
+    });
+  }, [submit, duplicateTitle, duplicateStatus]);
+
+  const handleDuplicateCancel = useCallback(() => {
+    setDuplicateModalOpen(false);
+    setDuplicateTitle("");
+    setDuplicateError(null);
   }, []);
 
   return (
-    <Page
-      title={`Edit ${bundle.title}`}
-      breadcrumbs={[{ content: "Bundles", url: "/app/bundles" }]}
-      secondaryActions={[
-        {
-          content: "Delete",
-          destructive: true,
-          onAction: handleDelete,
-        },
-      ]}
-    >
-      <Layout>
-        <Layout.Section>
-          <BundleForm
-            bundle={bundle}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            isSubmitting={isSubmitting}
-          />
-        </Layout.Section>
-      </Layout>
-    </Page>
+    <>
+      <Page
+        backAction={{content: "Bundles", url: "/app/bundles"}}
+        title={bundle.title}
+        primaryAction={{
+          content: "Edit bundle",
+          onAction: handleEdit,
+        }}
+        secondaryActions={[
+          {
+            content: "Duplicate",
+            onAction: handleDuplicateClick,
+            loading: duplicating,
+          },
+          {
+            content: "Delete",
+            destructive: true,
+            onAction: handleDelete,
+          },
+        ]}
+      >
+        <Layout>
+          <Layout.Section>
+            <BundleDetail
+              bundle={bundle}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onDuplicate={handleDuplicateClick}
+            />
+          </Layout.Section>
+        </Layout>
+      </Page>
+
+      <Modal
+        open={duplicateModalOpen}
+        onClose={handleDuplicateCancel}
+        title="Duplicate Bundle"
+        primaryAction={{
+          content: "Duplicate",
+          onAction: handleDuplicateConfirm,
+          loading: duplicating,
+          disabled: duplicating || !duplicateTitle.trim(),
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: handleDuplicateCancel,
+            disabled: duplicating,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <FormLayout>
+            {duplicateError && (
+              <Box paddingBlockEnd="400">
+                <InlineError message={duplicateError} />
+              </Box>
+            )}
+            
+            <TextField
+              label="Bundle title"
+              value={duplicateTitle}
+              onChange={setDuplicateTitle}
+              autoComplete="off"
+              error={!duplicateTitle.trim() ? "Title is required" : undefined}
+              helpText="Enter a unique title for the duplicated bundle"
+              requiredIndicator
+              disabled={duplicating}
+            />
+            
+            <Select
+              label="Status"
+              options={[
+                { label: "Draft", value: "draft" },
+                { label: "Active", value: "active" },
+              ]}
+              value={duplicateStatus}
+              onChange={(value) => setDuplicateStatus(value as "active" | "draft")}
+              helpText="Choose the initial status for the duplicated bundle"
+              disabled={duplicating}
+            />
+          </FormLayout>
+        </Modal.Section>
+      </Modal>
+    </>
   );
 }
 

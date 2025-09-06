@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit, useNavigation, Link } from "@remix-run/react";
-import { Page, Layout, Button, BlockStack, TextField, Card, Filters, ChoiceList, InlineStack, Spinner, Text } from "@shopify/polaris";
+import { useLoaderData, useNavigate, useSubmit, useNavigation, Link, useActionData } from "@remix-run/react";
+import { Page, Layout, Button, BlockStack, TextField, Card, Filters, ChoiceList, InlineStack, Spinner, Text, Banner, Frame, Toast, Pagination } from "@shopify/polaris";
 import { authenticate } from "~/shopify.server";
 import { BundleList } from "~/components/BundleList";
 import { listBundles, deleteBundle, updateBundle } from "~/services/bundle-metaobject.server";
@@ -14,14 +14,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get("page") || "1");
-  const limit = parseInt(url.searchParams.get("limit") || "50"); // Increased for client-side filtering
+  const limit = parseInt(url.searchParams.get("limit") || "20");
   const status = url.searchParams.get("status") || "all";
   const search = url.searchParams.get("search") || "";
 
   try {
     const result = await listBundles(admin, page, limit, status === "all" ? undefined : status as any);
     
-    // Apply search filter on the server side
+    // Apply search filter on the server side if needed
     let filteredBundles = result.bundles;
     if (search.trim()) {
       const searchLower = search.toLowerCase().trim();
@@ -33,12 +33,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     
     const response: ListBundlesResponse = {
       bundles: filteredBundles,
-      pagination: {
-        page,
-        limit,
-        total: filteredBundles.length,
-        hasNext: false, // Disable pagination when searching
-      },
+      pagination: result.pagination,
     };
 
     return json(response);
@@ -64,10 +59,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const result = await deleteBundle(admin, bundleId);
       
       if (!result.success) {
-        return json({ error: result.errors.join(", ") }, { status: 400 });
+        return json({ 
+          success: false,
+          error: result.errors.join(", ") || "Failed to delete bundle",
+          action: "delete"
+        }, { status: 400 });
       }
       
-      return json({ success: true });
+      return json({ 
+        success: true, 
+        message: "Bundle deleted successfully",
+        action: "delete",
+        bundleId 
+      });
     }
 
     if (action === "toggleStatus") {
@@ -75,21 +79,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const result = await updateBundle(admin, bundleId, { status: newStatus });
       
       if (!result.bundle) {
-        return json({ error: result.errors.join(", ") }, { status: 400 });
+        return json({ 
+          success: false,
+          error: result.errors.join(", ") || "Failed to update bundle status",
+          action: "toggleStatus"
+        }, { status: 400 });
       }
       
-      return json({ success: true });
+      return json({ 
+        success: true, 
+        message: `Bundle status changed to ${newStatus}`,
+        action: "toggleStatus",
+        bundle: result.bundle
+      });
     }
 
-    return json({ error: "Invalid action" }, { status: 400 });
+    return json({ 
+      success: false,
+      error: "Invalid action",
+      action
+    }, { status: 400 });
   } catch (error) {
     console.error("Action failed:", error);
-    return json({ error: "Operation failed. Please try again." }, { status: 500 });
+    return json({ 
+      success: false,
+      error: error instanceof Error ? error.message : "Operation failed. Please try again.",
+      action
+    }, { status: 500 });
   }
 };
 
 export default function BundlesPage() {
   const data = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const navigate = useNavigate();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -100,6 +122,11 @@ export default function BundlesPage() {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [isClientSide, setIsClientSide] = useState(false);
   const [lastSearchParams, setLastSearchParams] = useState("");
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastError, setToastError] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [actionBundleIds, setActionBundleIds] = useState<Set<string>>(new Set());
   
   const isLoading = navigation.state !== "idle";
   const isSearching = fetcher.state !== "idle";
@@ -117,6 +144,30 @@ export default function BundlesPage() {
       setError(currentData.error);
     }
   }, [currentData]);
+
+  // Handle action responses for toast notifications
+  useEffect(() => {
+    if (actionData) {
+      if (actionData.success) {
+        setToastMessage(actionData.message || "Action completed successfully");
+        setToastError(false);
+        setToastActive(true);
+      } else {
+        setToastMessage(actionData.error || "An error occurred");
+        setToastError(true);
+        setToastActive(true);
+      }
+      
+      // Clear action bundle ID from loading state
+      if (actionData.bundleId) {
+        setActionBundleIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(actionData.bundleId);
+          return newSet;
+        });
+      }
+    }
+  }, [actionData]);
 
   // Modern search with proper debouncing
   useEffect(() => {
@@ -151,23 +202,75 @@ export default function BundlesPage() {
   }, [searchValue, statusFilter, isClientSide, lastSearchParams, fetcher]);
 
   const handleEdit = useCallback((bundleId: string) => {
-    navigate(`/app/bundles/${bundleId}/edit`);
+    // Encode the GID to handle forward slashes
+    const encodedId = encodeURIComponent(bundleId);
+    navigate(`/app/bundles/${encodedId}/edit`);
   }, [navigate]);
 
   const handleDelete = useCallback(async (bundleId: string) => {
+    // Prevent double-clicks
+    if (actionBundleIds.has(bundleId)) return;
+    
+    setActionBundleIds(prev => new Set(prev).add(bundleId));
     const formData = new FormData();
     formData.append("action", "delete");
     formData.append("bundleId", bundleId);
     submit(formData, { method: "post" });
-  }, [submit]);
+  }, [submit, actionBundleIds]);
 
   const handleStatusToggle = useCallback(async (bundleId: string, status: Bundle['status']) => {
+    // Prevent double-clicks
+    if (actionBundleIds.has(bundleId)) return;
+    
+    setActionBundleIds(prev => new Set(prev).add(bundleId));
     const formData = new FormData();
     formData.append("action", "toggleStatus");
     formData.append("bundleId", bundleId);
     formData.append("status", status);
     submit(formData, { method: "post" });
-  }, [submit]);
+  }, [submit, actionBundleIds]);
+
+  const handleDuplicate = useCallback(async (bundleId: string, title: string, status?: "active" | "draft") => {
+    try {
+      const result = await fetch(`/api/bundles/${bundleId}/duplicate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title,
+          status: status || "draft",
+        }),
+      });
+      
+      const data = await result.json();
+      console.log("Duplicate API response:", data);
+      
+      if (result.ok && data.bundle) {
+        // Show success toast
+        setToastMessage(`Bundle duplicated successfully as "${data.bundle.title}"`);
+        setToastError(false);
+        setToastActive(true);
+        
+        // Reload the current page to show the new bundle
+        fetcher.load(`/app/bundles?page=${currentPage}`);
+        
+        // Navigate to the new bundle after a short delay
+        setTimeout(() => {
+          const encodedId = encodeURIComponent(data.bundle.id);
+          navigate(`/app/bundles/${encodedId}`);
+        }, 1500);
+      } else {
+        throw new Error(data.message || "Failed to duplicate bundle");
+      }
+    } catch (error) {
+      // Show error toast
+      setToastMessage(error instanceof Error ? error.message : "Failed to duplicate bundle");
+      setToastError(true);
+      setToastActive(true);
+      throw error;
+    }
+  }, [navigate, fetcher, currentPage]);
 
   // Clear filters handler
   const handleClearFilters = useCallback(() => {
@@ -258,19 +361,52 @@ export default function BundlesPage() {
             )}
 
             {"bundles" in currentData && (
-              <BundleList
-                bundles={currentData.bundles}
-                pagination={currentData.pagination}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onStatusToggle={handleStatusToggle}
-                loading={isLoading || isSearching}
-                error={error}
-              />
+              <>
+                <BundleList
+                  bundles={currentData.bundles}
+                  pagination={currentData.pagination}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onDuplicate={handleDuplicate}
+                  onStatusToggle={handleStatusToggle}
+                  loading={isLoading || isSearching}
+                  error={error}
+                  actionLoadingIds={actionBundleIds}
+                />
+                
+                {/* Pagination */}
+                {currentData.pagination && (currentData.pagination.hasNext || currentData.pagination.page > 1) && (
+                  <Box paddingBlockStart="400" paddingBlockEnd="400">
+                    <InlineStack align="center">
+                      <Pagination
+                        hasPrevious={currentData.pagination.page > 1}
+                        onPrevious={() => {
+                          const prevPage = Math.max(1, currentData.pagination.page - 1);
+                          fetcher.load(`/app/bundles?page=${prevPage}`);
+                        }}
+                        hasNext={currentData.pagination.hasNext}
+                        onNext={() => {
+                          const nextPage = currentData.pagination.page + 1;
+                          fetcher.load(`/app/bundles?page=${nextPage}`);
+                        }}
+                      />
+                    </InlineStack>
+                  </Box>
+                )}
+              </>
             )}
           </BlockStack>
         </Layout.Section>
       </Layout>
+      
+      {toastActive && (
+        <Toast
+          content={toastMessage}
+          error={toastError}
+          onDismiss={() => setToastActive(false)}
+          duration={4500}
+        />
+      )}
     </Page>
   );
 }

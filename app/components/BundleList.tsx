@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import {
   Badge,
   Card,
@@ -11,6 +12,10 @@ import {
   ButtonGroup,
   Box,
   InlineError,
+  Modal,
+  TextField,
+  Select,
+  FormLayout,
 } from "@shopify/polaris";
 import type { Bundle } from "~/types/bundle";
 
@@ -24,9 +29,11 @@ interface BundleListProps {
   };
   onEdit: (bundleId: string) => void;
   onDelete: (bundleId: string) => Promise<void>;
+  onDuplicate: (bundleId: string, title: string, status?: "active" | "draft") => Promise<void>;
   onStatusToggle: (bundleId: string, status: Bundle['status']) => Promise<void>;
   loading?: boolean;
   error?: string;
+  actionLoadingIds?: Set<string>;
 }
 
 export function BundleList({
@@ -34,10 +41,76 @@ export function BundleList({
   pagination,
   onEdit,
   onDelete,
+  onDuplicate,
   onStatusToggle,
   loading = false,
   error,
+  actionLoadingIds = new Set(),
 }: BundleListProps) {
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicatingBundleId, setDuplicatingBundleId] = useState<string | null>(null);
+  const [duplicateTitle, setDuplicateTitle] = useState("");
+  const [duplicateStatus, setDuplicateStatus] = useState<"active" | "draft">("draft");
+  const [duplicating, setDuplicating] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
+  const handleDuplicateClick = useCallback((bundle: Bundle) => {
+    setDuplicatingBundleId(bundle.id);
+    
+    // Generate a unique title suggestion
+    const baseName = bundle.title.replace(/ - Copy( \d+)?$/, ''); // Remove existing copy suffix
+    const copyPattern = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} - Copy( \\d+)?$`);
+    const existingCopies = bundles.filter(b => copyPattern.test(b.title));
+    
+    let copyNumber = 1;
+    if (existingCopies.length > 0) {
+      // Find the highest copy number
+      const numbers = existingCopies.map(b => {
+        const match = b.title.match(/ - Copy (\d+)$/);
+        return match ? parseInt(match[1]) : 1;
+      });
+      copyNumber = Math.max(...numbers) + 1;
+    }
+    
+    const suggestedTitle = copyNumber === 1 
+      ? `${baseName} - Copy` 
+      : `${baseName} - Copy ${copyNumber}`;
+    
+    setDuplicateTitle(suggestedTitle);
+    setDuplicateStatus("draft");
+    setDuplicateError(null);
+    setDuplicateModalOpen(true);
+  }, [bundles]);
+
+  const handleDuplicateConfirm = useCallback(async () => {
+    if (!duplicatingBundleId || !duplicateTitle.trim()) {
+      setDuplicateError("Title is required");
+      return;
+    }
+
+    setDuplicating(true);
+    setDuplicateError(null);
+
+    try {
+      await onDuplicate(duplicatingBundleId, duplicateTitle, duplicateStatus);
+      // Close modal and reset state on success
+      setDuplicateModalOpen(false);
+      setDuplicatingBundleId(null);
+      setDuplicateTitle("");
+      setDuplicateError(null);
+      setDuplicating(false);
+    } catch (error) {
+      setDuplicateError(error instanceof Error ? error.message : "Failed to duplicate bundle");
+      setDuplicating(false);
+    }
+  }, [duplicatingBundleId, duplicateTitle, duplicateStatus, onDuplicate]);
+
+  const handleDuplicateCancel = useCallback(() => {
+    setDuplicateModalOpen(false);
+    setDuplicatingBundleId(null);
+    setDuplicateTitle("");
+    setDuplicateError(null);
+  }, []);
   if (loading) {
     return (
       <Card>
@@ -103,7 +176,7 @@ export function BundleList({
           return (
             <ResourceItem
               id={id}
-              url={`/app/bundles/${id}`}
+              url={`/app/bundles/${encodeURIComponent(id)}`}
               accessibilityLabel={`View details for ${title}`}
               persistActions
             >
@@ -138,13 +211,27 @@ export function BundleList({
                   
                   <Box paddingBlockStart="200">
                     <ButtonGroup>
-                      <Button onClick={() => onEdit(id)}>Edit</Button>
+                      <Button 
+                        onClick={() => onEdit(id)}
+                        disabled={actionLoadingIds.has(id)}
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        onClick={() => handleDuplicateClick(bundle)} 
+                        plain
+                        disabled={actionLoadingIds.has(id)}
+                      >
+                        Duplicate
+                      </Button>
                       <Button
                         onClick={async () => {
                           const newStatus = status === 'active' ? 'inactive' : 'active';
                           await onStatusToggle(id, newStatus);
                         }}
                         plain
+                        loading={actionLoadingIds.has(id)}
+                        disabled={actionLoadingIds.has(id)}
                       >
                         {status === 'active' ? 'Deactivate' : 'Activate'}
                       </Button>
@@ -156,6 +243,8 @@ export function BundleList({
                         }}
                         tone="critical"
                         plain
+                        loading={actionLoadingIds.has(id)}
+                        disabled={actionLoadingIds.has(id)}
                       >
                         Delete
                       </Button>
@@ -170,13 +259,57 @@ export function BundleList({
         totalItemsCount={pagination.total}
       />
       
-      {pagination.hasNext && (
-        <Box padding="400" insetBlockEnd="200">
-          <Button fullWidth url={`/app/bundles?page=${pagination.page + 1}`}>
-            Load more bundles
-          </Button>
-        </Box>
-      )}
+      <Modal
+        open={duplicateModalOpen}
+        onClose={handleDuplicateCancel}
+        title="Duplicate Bundle"
+        primaryAction={{
+          content: "Duplicate",
+          onAction: handleDuplicateConfirm,
+          loading: duplicating,
+          disabled: duplicating || !duplicateTitle.trim(),
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: handleDuplicateCancel,
+            disabled: duplicating,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <FormLayout>
+            {duplicateError && (
+              <Box paddingBlockEnd="400">
+                <InlineError message={duplicateError} />
+              </Box>
+            )}
+            
+            <TextField
+              label="Bundle title"
+              value={duplicateTitle}
+              onChange={setDuplicateTitle}
+              autoComplete="off"
+              error={!duplicateTitle.trim() ? "Title is required" : undefined}
+              helpText="Enter a unique title for the duplicated bundle"
+              requiredIndicator
+              disabled={duplicating}
+            />
+            
+            <Select
+              label="Status"
+              options={[
+                { label: "Draft", value: "draft" },
+                { label: "Active", value: "active" },
+              ]}
+              value={duplicateStatus}
+              onChange={(value) => setDuplicateStatus(value as "active" | "draft")}
+              helpText="Choose the initial status for the duplicated bundle"
+              disabled={duplicating}
+            />
+          </FormLayout>
+        </Modal.Section>
+      </Modal>
     </Card>
   );
 }

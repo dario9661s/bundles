@@ -36,7 +36,6 @@ You are the frontend specialist for Adsgun Bundles app. You build user interface
 - API endpoint URLs
 - Error response handling
 
-## Example Task![img.png](img.png)
 "Build Bundle List UI per AGENT_CONTRACTS.md Contract 1"
 You would:
 1. Create `/app/components/BundleList.tsx`

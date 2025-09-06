@@ -1,24 +1,40 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
-import type { ProductSearchResponse } from "~/types/bundle";
+import type { ProductSearchResponse, ErrorResponse, ErrorCode } from "~/types/bundle";
+
+function createErrorResponse(
+  message: string,
+  code: ErrorCode,
+  status: number,
+  details?: any
+): Response {
+  const errorResponse: ErrorResponse = {
+    error: true,
+    message,
+    code,
+    details,
+  };
+  return json(errorResponse, { status });
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  
-  const url = new URL(request.url);
-  const searchQuery = url.searchParams.get("query") || "";
-  const limit = parseInt(url.searchParams.get("limit") || "50");
-  
-  // Validate limit
-  if (limit > 250 || limit < 1) {
-    return json({ 
-      products: [], 
-      error: "Limit must be between 1 and 250" 
-    }, { status: 400 });
-  }
-
   try {
+    const { admin } = await authenticate.admin(request);
+    
+    const url = new URL(request.url);
+    const searchQuery = url.searchParams.get("query") || "";
+    const limit = parseInt(url.searchParams.get("limit") || "50");
+    
+    // Validate limit
+    if (limit > 250 || limit < 1) {
+      return createErrorResponse(
+        "Limit must be between 1 and 250",
+        "VALIDATION_ERROR",
+        400
+      );
+    }
+
     console.log('API: Fetching products with limit:', limit, 'query:', searchQuery);
     
     // GraphQL query to fetch real products from Shopify
@@ -113,7 +129,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Check for GraphQL errors
     if (result.errors) {
       console.error("GraphQL errors:", result.errors);
-      throw new Error("GraphQL query failed");
+      return createErrorResponse(
+        "Failed to fetch products from Shopify",
+        "INTERNAL_ERROR",
+        500,
+        { graphqlErrors: result.errors }
+      );
     }
 
     // Check if we have products
@@ -155,11 +176,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("Failed to fetch products:", error);
     console.error("Error details:", error instanceof Error ? error.message : "Unknown error");
     
-    // Return empty array with error information
-    const response: ProductSearchResponse = {
-      products: [],
-    };
-
-    return json(response);
+    return createErrorResponse(
+      "Internal server error",
+      "INTERNAL_ERROR",
+      500,
+      error instanceof Error ? { message: error.message } : undefined
+    );
   }
 };

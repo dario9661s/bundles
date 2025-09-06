@@ -3,7 +3,7 @@
 client_id = "bd5bad85ad477b8cbb9036bd6d7da30d"
 name = "Bundles Adsgun"
 handle = "bundles-adsgun"
-application_url = "https://academics-shower-extraordinary-ratio.trycloudflare.com"
+application_url = "https://anymore-wilderness-solaris-attacked.trycloudflare.com"
 embedded = true
 
 [build]
@@ -35,9 +35,9 @@ scopes = "read_cart_transforms,read_products,write_cart_transforms,write_product
 
 [auth]
 redirect_urls = [
-  "https://academics-shower-extraordinary-ratio.trycloudflare.com/auth/callback",
-  "https://academics-shower-extraordinary-ratio.trycloudflare.com/auth/shopify/callback",
-  "https://academics-shower-extraordinary-ratio.trycloudflare.com/api/auth/callback"
+  "https://anymore-wilderness-solaris-attacked.trycloudflare.com/auth/callback",
+  "https://anymore-wilderness-solaris-attacked.trycloudflare.com/auth/shopify/callback",
+  "https://anymore-wilderness-solaris-attacked.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

@@ -30,7 +30,8 @@ export default function CreateBundlePage() {
       }
 
       console.log("Bundle created successfully:", result);
-      navigate("/app/bundles");
+      // Navigate to the detail view of the newly created bundle
+      navigate(`/app/bundles/${encodeURIComponent(result.bundle.id)}`);
     } catch (err) {
       console.error("Error creating bundle:", err);
       setError(err instanceof Error ? err.message : "Failed to create bundle");
@@ -44,8 +45,8 @@ export default function CreateBundlePage() {
 
   return (
     <Page
+      backAction={{content: "Bundles", url: "/app/bundles"}}
       title="Create New Bundle"
-      breadcrumbs={[{ content: "Bundles", url: "/app/bundles" }]}
     >
       <Layout>
         <Layout.Section>

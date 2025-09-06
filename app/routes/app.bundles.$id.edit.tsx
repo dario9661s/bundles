@@ -15,8 +15,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw new Response("Bundle ID is required", { status: 400 });
   }
 
+  // Decode the ID in case it's URL-encoded
+  const decodedId = decodeURIComponent(params.id);
+
   try {
-    const bundle = await getBundle(admin, params.id);
+    const bundle = await getBundle(admin, decodedId);
     
     if (!bundle) {
       throw new Response("Bundle not found", { status: 404 });
@@ -41,7 +44,7 @@ export default function EditBundlePage() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/bundles/${bundle.id}`, {
+      const response = await fetch(`/api/bundles/${encodeURIComponent(bundle.id)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

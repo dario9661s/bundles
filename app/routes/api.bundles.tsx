@@ -241,7 +241,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // Check if this is a single bundle request
     if (params.id) {
-      const bundle = await getBundle(admin, params.id);
+      // Decode the ID in case it's URL-encoded
+      const decodedId = decodeURIComponent(params.id);
+      const bundle = await getBundle(admin, decodedId);
       
       if (!bundle) {
         return createErrorResponse(
@@ -271,12 +273,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     const response: ListBundlesResponse = {
       bundles: result.bundles,
-      pagination: {
-        page,
-        limit,
-        total: result.total,
-        hasNext: result.hasNext,
-      },
+      pagination: result.pagination,
     };
 
     return json(response);
@@ -296,7 +293,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 // DELETE /api/bundles/:id - Delete bundle
 export async function action({ request, params }: ActionFunctionArgs) {
   try {
-    const { admin, session } = await authenticate.admin(request);
+    const { admin } = await authenticate.admin(request);
     const method = request.method;
 
     // DELETE request
@@ -309,7 +306,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
-      const result = await deleteBundle(admin, params.id);
+      // Decode the ID in case it's URL-encoded
+      const decodedId = decodeURIComponent(params.id);
+      const result = await deleteBundle(admin, decodedId);
 
       if (!result.success) {
         return createErrorResponse(
@@ -366,7 +365,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
         updateData.steps = generateStepIds(data.steps);
       }
 
-      const result = await updateBundle(admin, params.id, updateData);
+      // Decode the ID in case it's URL-encoded
+      const decodedId = decodeURIComponent(params.id);
+      const result = await updateBundle(admin, decodedId, updateData);
 
       if (!result.bundle) {
         if (result.errors.some(e => e.includes("not found"))) {

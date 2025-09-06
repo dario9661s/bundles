@@ -146,8 +146,8 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
     mobileColumns: parseInt(fields.mobile_columns) || 2,
     desktopColumns: parseInt(fields.desktop_columns) || 4,
     steps: fields.steps || [],
-    createdAt: fields.created_at || new Date().toISOString(), // Use current time as fallback
-    updatedAt: fields.updated_at || new Date().toISOString(), // Use current time as fallback
+    createdAt: new Date().toISOString(), // Metaobjects don't have timestamps
+    updatedAt: new Date().toISOString(), // Metaobjects don't have timestamps
     layoutSettings,
   };
 }
@@ -179,13 +179,10 @@ function bundleToFields(bundle: Partial<Bundle>): Array<{ key: string; value: st
   if (bundle.steps !== undefined) {
     fields.push({ key: "steps", value: JSON.stringify(bundle.steps) });
   }
-  if (bundle.layoutSettings !== undefined) {
-    fields.push({ key: "layout_settings", value: JSON.stringify(bundle.layoutSettings) });
-  }
-  
-  // Always add updated timestamp for consistency
-  const now = new Date().toISOString();
-  fields.push({ key: "updated_at", value: now });
+  // Temporarily disabled until metaobject definition is updated
+  // if (bundle.layoutSettings !== undefined) {
+  //   fields.push({ key: "layout_settings", value: JSON.stringify(bundle.layoutSettings) });
+  // }
 
   return fields;
 }
@@ -220,8 +217,6 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
               { key: "desktop_columns", type: "single_line_text_field", name: "Desktop Columns", required: true }
               { key: "steps", type: "json", name: "Steps", required: true }
               { key: "layout_settings", type: "json", name: "Layout Settings", required: false }
-              { key: "created_at", type: "single_line_text_field", name: "Created At", required: false }
-              { key: "updated_at", type: "single_line_text_field", name: "Updated At", required: false }
             ]
           }
         ) {
@@ -246,7 +241,7 @@ export async function listBundles(
   page: number = 1,
   limit: number = 20,
   status?: "active" | "inactive" | "draft" | "all"
-): Promise<{ bundles: Bundle[]; total: number; hasNext: boolean }> {
+): Promise<{ bundles: Bundle[]; pagination: { page: number; limit: number; total: number; hasNext: boolean } }> {
   const query = `
     query ListBundles($first: Int!, $after: String) {
       metaobjects(type: "${METAOBJECT_TYPE}", first: $first, after: $after) {
@@ -299,8 +294,12 @@ export async function listBundles(
 
   return {
     bundles: paginatedBundles,
-    total: allBundles.length,
-    hasNext: end < allBundles.length,
+    pagination: {
+      page,
+      limit,
+      total: allBundles.length,
+      hasNext: end < allBundles.length,
+    },
   };
 }
 
@@ -339,10 +338,6 @@ export async function createBundle(
     console.log("Metaobject definition exists");
 
     const fields = bundleToFields(bundleData);
-    
-    // Add created_at timestamp for new bundles
-    const now = new Date().toISOString();
-    fields.push({ key: "created_at", value: now });
     
     console.log("Bundle fields:", fields);
 
@@ -481,4 +476,59 @@ export async function deleteBundle(
     success: !!result.data.metaobjectDelete.deletedId,
     errors: [],
   };
+}
+
+export async function duplicateBundle(
+  admin: AdminApiContext,
+  bundleId: string,
+  title: string,
+  status: "active" | "draft" = "draft"
+): Promise<{ bundle: Bundle | null; errors: string[] }> {
+  try {
+    // Fetch the original bundle
+    const originalBundle = await getBundle(admin, bundleId);
+    
+    if (!originalBundle) {
+      return {
+        bundle: null,
+        errors: ["Bundle not found"],
+      };
+    }
+    
+    // Create new bundle data with copied fields
+    const duplicateData = {
+      title, // Use the new title
+      status, // Use provided status or default to draft
+      discountType: originalBundle.discountType,
+      discountValue: originalBundle.discountValue,
+      layoutType: originalBundle.layoutType,
+      mobileColumns: originalBundle.mobileColumns,
+      desktopColumns: originalBundle.desktopColumns,
+      // Deep copy steps with new IDs
+      steps: originalBundle.steps.map((step, index) => ({
+        title: step.title,
+        description: step.description,
+        position: step.position,
+        minSelections: step.minSelections,
+        maxSelections: step.maxSelections,
+        required: step.required,
+        products: step.products.map(product => ({
+          id: product.id,
+          position: product.position,
+        })),
+      })),
+      layoutSettings: originalBundle.layoutSettings ? 
+        JSON.parse(JSON.stringify(originalBundle.layoutSettings)) : // Deep copy
+        undefined,
+    };
+    
+    // Create the duplicate bundle
+    return await createBundle(admin, duplicateData);
+  } catch (error) {
+    console.error("Error duplicating bundle:", error);
+    return {
+      bundle: null,
+      errors: [error instanceof Error ? error.message : "Failed to duplicate bundle"],
+    };
+  }
 }

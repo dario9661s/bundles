@@ -188,7 +188,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
       console.log('Fetching product details for:', newProductIds);
       fetchProductDetails(newProductIds);
     }
-  }, [steps, fetchProductDetails, productDetails]);
+  }, [steps, fetchProductDetails]);
 
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
@@ -242,6 +242,31 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
       return;
     }
 
+    // Only include the relevant layoutSettings based on layoutType
+    const layoutSettings: any = {};
+    switch (formData.layoutType) {
+      case 'grid':
+        if (formData.layoutSettings.gridSettings) {
+          layoutSettings.gridSettings = formData.layoutSettings.gridSettings;
+        }
+        break;
+      case 'slider':
+        if (formData.layoutSettings.sliderSettings) {
+          layoutSettings.sliderSettings = formData.layoutSettings.sliderSettings;
+        }
+        break;
+      case 'modal':
+        if (formData.layoutSettings.modalSettings) {
+          layoutSettings.modalSettings = formData.layoutSettings.modalSettings;
+        }
+        break;
+      case 'selection':
+        if (formData.layoutSettings.selectionSettings) {
+          layoutSettings.selectionSettings = formData.layoutSettings.selectionSettings;
+        }
+        break;
+    }
+
     const data: CreateBundleRequest | UpdateBundleRequest = {
       title: formData.title,
       status: formData.status as "active" | "draft",
@@ -250,7 +275,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
       layoutType: formData.layoutType as "grid" | "slider" | "modal" | "selection",
       mobileColumns: formData.mobileColumns,
       desktopColumns: formData.desktopColumns,
-      layoutSettings: formData.layoutSettings,
+      layoutSettings: layoutSettings,
       steps: steps.map((step, index) => ({
         title: step.title,
         description: step.description || undefined,
