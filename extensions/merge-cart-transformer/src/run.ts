@@ -22,7 +22,7 @@ interface BundleConfiguration {
 }
 
 export function run(input: RunInput): FunctionRunResult {
-  // If there is no merge config, we just abort
+  // Check for bundle configurations in metafield
   if (!input.cartTransform.mergeConfigurations) {
     console.error("No merge configurations found.");
     return NO_CHANGES;
@@ -30,12 +30,10 @@ export function run(input: RunInput): FunctionRunResult {
 
   let bundles: BundleConfiguration[];
   try {
-    const mergeConfigurations = JSON.parse(
-      input.cartTransform.mergeConfigurations.value,
-    );
-    bundles = mergeConfigurations.bundles || [];
+    const bundleConfig = JSON.parse(input.cartTransform.mergeConfigurations.value);
+    bundles = bundleConfig.bundles || [];
   } catch (error) {
-    console.error("Failed to parse merge configurations:", error);
+    console.error("Failed to parse bundle configurations:", error);
     return NO_CHANGES;
   }
 

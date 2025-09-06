@@ -3,7 +3,7 @@
 client_id = "bd5bad85ad477b8cbb9036bd6d7da30d"
 name = "Bundles Adsgun"
 handle = "bundles-adsgun"
-application_url = "https://queries-mate-normal-oclc.trycloudflare.com"
+application_url = "https://vendors-mouth-situation-consent.trycloudflare.com"
 embedded = true
 
 [build]
@@ -35,9 +35,9 @@ scopes = "read_cart_transforms,read_products,write_cart_transforms,write_product
 
 [auth]
 redirect_urls = [
-  "https://queries-mate-normal-oclc.trycloudflare.com/auth/callback",
-  "https://queries-mate-normal-oclc.trycloudflare.com/auth/shopify/callback",
-  "https://queries-mate-normal-oclc.trycloudflare.com/api/auth/callback"
+  "https://vendors-mouth-situation-consent.trycloudflare.com/auth/callback",
+  "https://vendors-mouth-situation-consent.trycloudflare.com/auth/shopify/callback",
+  "https://vendors-mouth-situation-consent.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

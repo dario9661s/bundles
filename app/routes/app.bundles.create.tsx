@@ -4,7 +4,7 @@ import { BundleForm } from "~/components/BundleForm";
 import type { CreateBundleRequest } from "~/types/bundle";
 import { useCallback, useState } from "react";
 
-export default function NewBundlePage() {
+export default function CreateBundlePage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

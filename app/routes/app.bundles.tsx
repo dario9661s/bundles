@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit, useNavigation, Link } from "@remix-run/react";
+import { useLoaderData, useNavigate, useSubmit, useNavigation, Link, Outlet } from "@remix-run/react";
 import { Page, Layout, Button, BlockStack } from "@shopify/polaris";
 import { authenticate } from "~/shopify.server";
 import { BundleList } from "~/components/BundleList";
@@ -121,10 +121,7 @@ export default function BundlesPage() {
       title="Product Bundles"
       primaryAction={{
         content: "Create bundle",
-        onAction: () => {
-          console.log("Create bundle clicked");
-          window.location.href = "/app/bundles/new";
-        },
+        url: "/app/bundles/create",
       }}
     >
       <Layout>
@@ -144,6 +141,7 @@ export default function BundlesPage() {
           </BlockStack>
         </Layout.Section>
       </Layout>
+      <Outlet />
     </Page>
   );
 }

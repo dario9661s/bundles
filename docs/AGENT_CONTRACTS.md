@@ -357,6 +357,120 @@ interface ProductPickerProps {
 
 ---
 
+## 🤝 Contract 6: Theme App Block
+
+### Bundle Display Data
+```typescript
+// GET /app/api/bundles/storefront/:handle
+interface StorefrontBundleRequest {
+  handle: string // URL parameter - bundle handle
+  currency?: string // Optional currency code (e.g., "USD", "CAD")
+}
+
+interface StorefrontBundleResponse {
+  bundle: {
+    id: string
+    handle: string
+    title: string
+    discountType: "percentage" | "fixed" | "total"
+    discountValue: number
+    layoutType: "grid" | "slider" | "portrait" | "landscape"
+    mobileColumns: number
+    desktopColumns: number
+    steps: Array<{
+      id: string
+      title: string
+      description?: string
+      position: number
+      minSelections: number
+      maxSelections?: number
+      required: boolean
+      products: Array<{
+        id: string // Shopify GID
+        position: number
+        // Product details for display
+        title: string
+        handle: string
+        featuredImage?: string
+        vendor: string
+        priceRange: {
+          min: string // Formatted price "10.00"
+          max: string
+        }
+        availableForSale: boolean
+        // First variant for quick add
+        defaultVariant: {
+          id: string
+          price: string
+          compareAtPrice?: string
+          availableForSale: boolean
+        }
+      }>
+    }>
+    // Pre-calculated example savings
+    exampleSavings?: {
+      amount: string // "25.00"
+      percentage: number // 20
+    }
+  }
+}
+```
+
+### Add Bundle to Cart
+```typescript
+// POST /app/api/bundles/add-to-cart
+interface AddBundleToCartRequest {
+  bundleId: string
+  selections: Array<{
+    stepId: string
+    variantIds: string[] // Selected variant IDs
+  }>
+  // Optional cart attributes for tracking
+  attributes?: {
+    bundleHandle: string
+    bundleTitle: string
+    discountType: string
+    discountValue: string
+  }
+}
+
+interface AddBundleToCartResponse {
+  success: boolean
+  cartLines: Array<{
+    variantId: string
+    quantity: number
+    attributes: Record<string, string>
+  }>
+  // For redirect to cart
+  cartUrl?: string
+}
+```
+
+### App Block Settings Schema
+```typescript
+// This defines what settings the merchant can configure in theme editor
+interface AppBlockSettings {
+  // Display settings
+  heading?: string // Default: bundle.title
+  showSavings: boolean // Default: true
+  buttonText: string // Default: "Add Bundle to Cart"
+  
+  // Layout settings
+  productCardStyle: "compact" | "detailed" // Default: "detailed"
+  imageAspectRatio: "square" | "portrait" | "landscape" // Default: "square"
+  
+  // Mobile settings  
+  mobileLayout: "accordion" | "tabs" | "stack" // Default: "stack"
+  
+  // Color settings
+  accentColor?: string // For buttons and highlights
+  backgroundColor?: string
+  textColor?: string
+}
+```
+
+---
+
 ## ⚠️ Contract Rules
 
 1. **NO MODIFICATIONS** without updating both agents

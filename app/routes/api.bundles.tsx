@@ -8,6 +8,7 @@ import {
   updateBundle,
   deleteBundle,
 } from "~/services/bundle-metaobject.server";
+import { syncBundleOnChange } from "~/services/cart-transform-sync.server";
 import type {
   ListBundlesRequest,
   ListBundlesResponse,
@@ -194,7 +195,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 // DELETE /api/bundles/:id - Delete bundle
 export async function action({ request, params }: ActionFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const method = request.method;
 
     // DELETE request
@@ -215,6 +216,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
           "BUNDLE_NOT_FOUND",
           404
         );
+      }
+
+      // Sync to cart transform (optional - don't fail if it doesn't work)
+      try {
+        await syncBundleOnChange(admin, session.shop, params.id, "delete");
+      } catch (error) {
+        console.warn("Failed to sync to cart transform:", error);
       }
 
       return json({ success: true });
@@ -264,6 +272,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
+      // Sync to cart transform (optional - don't fail if it doesn't work)
+      try {
+        await syncBundleOnChange(admin, session.shop, params.id, "update");
+      } catch (error) {
+        console.warn("Failed to sync to cart transform:", error);
+      }
+
       return json({ bundle: result.bundle });
     }
 
@@ -306,6 +321,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
           "VALIDATION_ERROR",
           400
         );
+      }
+
+      // Sync to cart transform (optional - don't fail if it doesn't work)
+      if (result.bundle) {
+        try {
+          await syncBundleOnChange(admin, session.shop, result.bundle.id, "create");
+        } catch (error) {
+          console.warn("Failed to sync to cart transform:", error);
+          // Don't fail the bundle creation if cart transform sync fails
+        }
       }
 
       return json({ bundle: result.bundle }, { status: 201 });

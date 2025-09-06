@@ -56,7 +56,7 @@ export async function syncBundlesToCartTransform(admin: AdminApiContext, shop: s
         ) {
           cartTransform {
             id
-            metafield(namespace: "mergely", key: "bundles") {
+            metafield(namespace: "mergely", key: "merge-configurations") {
               value
             }
           }
@@ -72,7 +72,7 @@ export async function syncBundlesToCartTransform(admin: AdminApiContext, shop: s
       id: cartTransform.cartTransformId,
       metafield: {
         namespace: "mergely",
-        key: "bundles",
+        key: "merge-configurations",
         value: JSON.stringify({ bundles: cartTransformBundles }),
         type: "json",
       },

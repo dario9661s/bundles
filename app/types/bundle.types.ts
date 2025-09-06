@@ -143,3 +143,71 @@ export interface ProductSearchResponse {
     }>;
   }>;
 }
+
+// Contract 5: Bundle Price Calculation types
+export interface CalculatePriceRequest {
+  bundleId: string;
+  selectedProducts: Array<{
+    stepId: string;
+    productIds: string[];
+  }>;
+}
+
+export interface CalculatePriceResponse {
+  originalPrice: number;
+  discountAmount: number;
+  finalPrice: number;
+  savings: {
+    amount: number;
+    percentage: number;
+  };
+}
+
+// Contract 3: Bundle Step Management types
+export interface AddStepRequest {
+  title: string;
+  description?: string;
+  position?: number; // If not provided, adds to end
+  minSelections: number;
+  maxSelections?: number;
+  required: boolean;
+  products: Array<{
+    id: string; // Shopify GID
+    position: number;
+  }>;
+}
+
+export interface AddStepResponse {
+  step: BundleStep;
+}
+
+export interface UpdateStepRequest {
+  title?: string;
+  description?: string;
+  minSelections?: number;
+  maxSelections?: number;
+  required?: boolean;
+  products?: Array<{
+    id: string; // Shopify GID
+    position: number;
+  }>;
+}
+
+export interface UpdateStepResponse {
+  step: BundleStep;
+}
+
+export interface RemoveStepResponse {
+  success: boolean;
+}
+
+export interface ReorderStepsRequest {
+  stepOrder: Array<{
+    stepId: string;
+    position: number;
+  }>;
+}
+
+export interface ReorderStepsResponse {
+  steps: BundleStep[];
+}
