@@ -1,6 +1,6 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { listBundles } from "./bundle-metaobject.server";
-import type { Bundle } from "~/types/bundle.types";
+import type { Bundle } from "~/types/bundle";
 import prisma from "~/db.server";
 
 interface CartTransformBundle {

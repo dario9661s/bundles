@@ -8,7 +8,6 @@ import {
   updateBundle,
   deleteBundle,
 } from "~/services/bundle-metaobject.server";
-import { syncBundleOnChange } from "~/services/cart-transform-sync.server";
 import type {
   ListBundlesRequest,
   ListBundlesResponse,
@@ -17,7 +16,7 @@ import type {
   ErrorResponse,
   ErrorCode,
   Bundle,
-} from "~/types/bundle.types";
+} from "~/types/bundle";
 
 function createErrorResponse(
   message: string,
@@ -218,12 +217,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
-      // Sync to cart transform (optional - don't fail if it doesn't work)
-      try {
-        await syncBundleOnChange(admin, session.shop, params.id, "delete");
-      } catch (error) {
-        console.warn("Failed to sync to cart transform:", error);
-      }
 
       return json({ success: true });
     }
@@ -272,12 +265,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
-      // Sync to cart transform (optional - don't fail if it doesn't work)
-      try {
-        await syncBundleOnChange(admin, session.shop, params.id, "update");
-      } catch (error) {
-        console.warn("Failed to sync to cart transform:", error);
-      }
 
       return json({ bundle: result.bundle });
     }
@@ -323,15 +310,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
-      // Sync to cart transform (optional - don't fail if it doesn't work)
-      if (result.bundle) {
-        try {
-          await syncBundleOnChange(admin, session.shop, result.bundle.id, "create");
-        } catch (error) {
-          console.warn("Failed to sync to cart transform:", error);
-          // Don't fail the bundle creation if cart transform sync fails
-        }
-      }
 
       return json({ bundle: result.bundle }, { status: 201 });
     }
@@ -343,8 +321,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
     );
   } catch (error) {
     console.error("Error in bundle action:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
     return createErrorResponse(
-      "Internal server error",
+      `Internal server error: ${error instanceof Error ? error.message : "Unknown error"}`,
       "INTERNAL_ERROR",
       500,
       error

@@ -1,5 +1,5 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
-import type { Bundle, BundleStep, BundleProduct } from "../types/bundle.types";
+import type { Bundle, BundleStep, BundleProduct } from "../types/bundle";
 
 const METAOBJECT_TYPE = "mergely_bundle";
 
@@ -12,8 +12,6 @@ export interface BundleMetaobject {
   id: string;
   handle: string;
   fields: MetaobjectField[];
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface MetaobjectsResponse {
@@ -95,8 +93,8 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
     mobileColumns: parseInt(fields.mobile_columns) || 2,
     desktopColumns: parseInt(fields.desktop_columns) || 4,
     steps: fields.steps || [],
-    createdAt: metaobject.createdAt,
-    updatedAt: metaobject.updatedAt,
+    createdAt: new Date().toISOString(), // Use current time as fallback
+    updatedAt: new Date().toISOString(), // Use current time as fallback
   };
 }
 
@@ -195,8 +193,6 @@ export async function listBundles(
             key
             value
           }
-          createdAt
-          updatedAt
         }
         pageInfo {
           hasNextPage
@@ -254,8 +250,6 @@ export async function getBundle(admin: AdminApiContext, id: string): Promise<Bun
           key
           value
         }
-        createdAt
-        updatedAt
       }
     }
   `;
@@ -274,9 +268,14 @@ export async function createBundle(
   admin: AdminApiContext,
   bundleData: Omit<Bundle, "id" | "handle" | "createdAt" | "updatedAt">
 ): Promise<{ bundle: Bundle | null; errors: string[] }> {
-  await ensureMetaobjectDefinitionExists(admin);
+  console.log("Creating bundle with data:", bundleData);
+  
+  try {
+    await ensureMetaobjectDefinitionExists(admin);
+    console.log("Metaobject definition exists");
 
-  const fields = bundleToFields(bundleData);
+    const fields = bundleToFields(bundleData);
+    console.log("Bundle fields:", fields);
 
   const mutation = `
     mutation CreateBundle($metaobject: MetaobjectCreateInput!) {
@@ -288,8 +287,6 @@ export async function createBundle(
             key
             value
           }
-          createdAt
-          updatedAt
         }
         userErrors {
           field
@@ -306,22 +303,32 @@ export async function createBundle(
     },
   };
 
-  const response = await admin.graphql(mutation, { variables });
-  const result = (await response.json()) as CreateMetaobjectResponse;
+    const response = await admin.graphql(mutation, { variables });
+    const result = (await response.json()) as CreateMetaobjectResponse;
+    
+    console.log("GraphQL response:", JSON.stringify(result, null, 2));
 
-  if (result.data.metaobjectCreate.userErrors.length > 0) {
+    if (result.data.metaobjectCreate.userErrors.length > 0) {
+      console.error("User errors:", result.data.metaobjectCreate.userErrors);
+      return {
+        bundle: null,
+        errors: result.data.metaobjectCreate.userErrors.map((e) => e.message),
+      };
+    }
+
+    return {
+      bundle: result.data.metaobjectCreate.metaobject
+        ? metaobjectToBundle(result.data.metaobjectCreate.metaobject)
+        : null,
+      errors: [],
+    };
+  } catch (error) {
+    console.error("Error in createBundle:", error);
     return {
       bundle: null,
-      errors: result.data.metaobjectCreate.userErrors.map((e) => e.message),
+      errors: [error instanceof Error ? error.message : "Unknown error"],
     };
   }
-
-  return {
-    bundle: result.data.metaobjectCreate.metaobject
-      ? metaobjectToBundle(result.data.metaobjectCreate.metaobject)
-      : null,
-    errors: [],
-  };
 }
 
 export async function updateBundle(
@@ -341,8 +348,6 @@ export async function updateBundle(
             key
             value
           }
-          createdAt
-          updatedAt
         }
         userErrors {
           field
