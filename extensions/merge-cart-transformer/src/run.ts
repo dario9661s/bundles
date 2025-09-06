@@ -8,127 +8,182 @@ const NO_CHANGES: FunctionRunResult = {
   operations: [],
 };
 
-type LineItemPropertyKey =
-  | "lineItemProperty1"
-  | "lineItemProperty2"
-  | "lineItemProperty3"
-  | "lineItemProperty4"
-  | "lineItemProperty5"
-  | "lineItemProperty6"
-  | "lineItemProperty7"
-  | "lineItemProperty8"
-  | "lineItemProperty9"
-  | "lineItemProperty10";
+interface BundleConfiguration {
+  id: string;
+  title: string;
+  discountType: "percentage" | "fixed" | "total";
+  discountValue: number;
+  steps: Array<{
+    id: string;
+    products: Array<{
+      id: string;
+    }>;
+  }>;
+}
 
 export function run(input: RunInput): FunctionRunResult {
   // If there is no merge config, we just abort
   if (!input.cartTransform.mergeConfigurations) {
     console.error("No merge configurations found.");
-
     return NO_CHANGES;
   }
 
-  const mergeConfigurations = JSON.parse(
-    input.cartTransform.mergeConfigurations.value,
-  );
+  let bundles: BundleConfiguration[];
+  try {
+    const mergeConfigurations = JSON.parse(
+      input.cartTransform.mergeConfigurations.value,
+    );
+    bundles = mergeConfigurations.bundles || [];
+  } catch (error) {
+    console.error("Failed to parse merge configurations:", error);
+    return NO_CHANGES;
+  }
 
-  const lineItemProperties: LineItemPropertyKey[] = [
-    "lineItemProperty1",
-    "lineItemProperty2",
-    "lineItemProperty3",
-    "lineItemProperty4",
-    "lineItemProperty5",
-    "lineItemProperty6",
-    "lineItemProperty7",
-    "lineItemProperty8",
-    "lineItemProperty9",
-    "lineItemProperty10",
-  ];
+  if (!bundles || bundles.length === 0) {
+    return NO_CHANGES;
+  }
 
-  // This will create an object with all active lineItemProperty attributes from the merge configuration
-  const groupedItems: Record<
-    string,
-    Record<
-      string,
-      {
-        id: string;
-        quantity: number;
-        merchandise: { id: string; product: { title: string } };
-      }[]
-    >
-  > = Object.fromEntries(
-    lineItemProperties
-      .filter((lineItemProperty) => mergeConfigurations[lineItemProperty])
-      .map((lineItemProperty) => [lineItemProperty, {}]),
-  );
+  const operations: CartOperation[] = [];
+  const cartProductIds = new Set<string>();
+  const cartLinesByProductId = new Map<string, typeof input.cart.lines[0][]>();
 
-  lineItemProperties.forEach((lineItemProperty) => {
-    input.cart.lines.forEach((line) => {
-      if (!("product" in line.merchandise)) {
-        return;
+  // Build a map of product IDs to cart lines
+  input.cart.lines.forEach((line) => {
+    if ("product" in line.merchandise) {
+      const productId = line.merchandise.id;
+      cartProductIds.add(productId);
+      
+      if (!cartLinesByProductId.has(productId)) {
+        cartLinesByProductId.set(productId, []);
       }
-
-      const lineItemPropertyValue = line[lineItemProperty]?.value;
-      if (!lineItemPropertyValue) {
-        return;
-      }
-
-      if (!groupedItems[lineItemProperty][lineItemPropertyValue]) {
-        groupedItems[lineItemProperty][lineItemPropertyValue] = [];
-      }
-
-      // @ts-ignore We know that we have a ProductVariant since we filter before
-      groupedItems[lineItemProperty][lineItemPropertyValue].push(line);
-    });
+      cartLinesByProductId.get(productId)!.push(line);
+    }
   });
 
-  const mergeOperations = Object.keys(groupedItems)
-    .flatMap((lineItemProperty) => {
-      const lineItemPropertyValue = mergeConfigurations[lineItemProperty];
-      const extensionProducts =
-        mergeConfigurations.mergeConfigurations[lineItemPropertyValue];
+  // Check each bundle to see if all products are in the cart
+  bundles.forEach((bundle) => {
+    const bundleProductIds = new Set<string>();
+    
+    // Collect all product IDs from the bundle
+    bundle.steps.forEach((step) => {
+      step.products.forEach((product) => {
+        bundleProductIds.add(product.id);
+      });
+    });
 
-      if (
-        !extensionProducts ||
-        !Array.isArray(extensionProducts) ||
-        !extensionProducts.length
-      ) {
-        console.error(
-          `No extension products for merge configuration ${lineItemProperty}.`,
-        );
+    // Check if all bundle products are in the cart
+    const allProductsInCart = Array.from(bundleProductIds).every(
+      (productId) => cartProductIds.has(productId)
+    );
 
-        return null;
-      }
+    if (allProductsInCart) {
+      // All products from this bundle are in the cart, create merge operation
+      const cartLinesToMerge: Array<{ cartLineId: string; quantity: number }> = [];
+      const productTitles: string[] = [];
+      let parentProductId: string | null = null;
+      
+      // Collect all cart lines for this bundle
+      bundleProductIds.forEach((productId) => {
+        const lines = cartLinesByProductId.get(productId) || [];
+        lines.forEach((line) => {
+          cartLinesToMerge.push({
+            cartLineId: line.id,
+            quantity: line.quantity,
+          });
+          
+          if ("product" in line.merchandise) {
+            productTitles.push(line.merchandise.product.title);
+            // Use the first product as the parent
+            if (!parentProductId) {
+              parentProductId = line.merchandise.id;
+            }
+          }
+        });
+      });
 
-      return Object.values(groupedItems[lineItemProperty]).map((group) => {
-        const parentProduct = group.find(
-          (product) => !extensionProducts.includes(product.merchandise.id),
-        );
-
-        if (!parentProduct) {
-          return null;
-        }
-
+      if (parentProductId && cartLinesToMerge.length > 1) {
+        // Create the merge operation
         const mergeOperation: CartOperation = {
           merge: {
-            cartLines: group.map((line) => {
-              return {
-                cartLineId: line.id,
-                quantity: line.quantity,
-              };
-            }),
-            title: group
-              .map((line) => line.merchandise.product.title)
-              .join(" + "),
-            parentVariantId: parentProduct.merchandise.id,
+            cartLines: cartLinesToMerge,
+            title: bundle.title || productTitles.join(" + "),
+            parentVariantId: parentProductId,
+            // Apply discount based on bundle configuration
+            price: calculateBundlePrice(bundle, cartLinesToMerge, input),
           },
         };
-        return mergeOperation;
-      });
-    })
-    .filter((mergeOperation) => mergeOperation !== null);
+        
+        operations.push(mergeOperation);
+      }
+    }
+  });
 
   return {
-    operations: mergeOperations,
+    operations,
   };
+}
+
+function calculateBundlePrice(
+  bundle: BundleConfiguration,
+  cartLines: Array<{ cartLineId: string; quantity: number }>,
+  input: RunInput
+): { percentageDecrease?: { value: string } } | undefined {
+  // Calculate discount based on bundle configuration
+  switch (bundle.discountType) {
+    case "percentage":
+      return {
+        percentageDecrease: {
+          value: bundle.discountValue.toString(),
+        },
+      };
+    
+    case "fixed":
+      // For fixed discount, we need to calculate the percentage
+      // This is a simplified version - in production you'd need to calculate
+      // the total price of items and convert fixed discount to percentage
+      const totalPrice = calculateTotalPrice(cartLines, input);
+      if (totalPrice > 0) {
+        const percentageDiscount = (bundle.discountValue / totalPrice) * 100;
+        return {
+          percentageDecrease: {
+            value: Math.min(percentageDiscount, 100).toString(), // Cap at 100%
+          },
+        };
+      }
+      break;
+    
+    case "total":
+      // For total price, calculate the discount needed
+      const currentTotal = calculateTotalPrice(cartLines, input);
+      if (currentTotal > bundle.discountValue) {
+        const discountAmount = currentTotal - bundle.discountValue;
+        const percentageDiscount = (discountAmount / currentTotal) * 100;
+        return {
+          percentageDecrease: {
+            value: percentageDiscount.toString(),
+          },
+        };
+      }
+      break;
+  }
+  
+  return undefined;
+}
+
+function calculateTotalPrice(
+  cartLines: Array<{ cartLineId: string; quantity: number }>,
+  input: RunInput
+): number {
+  let total = 0;
+  
+  cartLines.forEach(({ cartLineId }) => {
+    const line = input.cart.lines.find((l) => l.id === cartLineId);
+    if (line && line.cost) {
+      // Use the total amount from the line cost
+      const amount = parseFloat(line.cost.totalAmount.amount);
+      total += amount;
+    }
+  });
+  
+  return total;
 }

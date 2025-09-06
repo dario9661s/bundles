@@ -1,5 +1,5 @@
 {
-  "name": "adsgun-product-bundler",
+  "name": "omosa-merge-function",
   "private": true,
   "scripts": {
     "build": "remix vite:build",

@@ -1,4 +1,4 @@
-# Adsgun Bundles - Master TODO List
+# Mergely Bundles - Master TODO List
 
 ## Overview
 Building bundle app like Biscuits - focusing on ~40 core features that matter.
