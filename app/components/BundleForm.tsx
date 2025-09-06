@@ -24,8 +24,9 @@ import {
   Tabs,
   Checkbox,
   InlineStack,
+  RadioButton,
 } from "@shopify/polaris";
-import { DeleteIcon, SearchIcon, DragHandleIcon } from "@shopify/polaris-icons";
+import { DeleteIcon, SearchIcon, DragHandleIcon, CheckIcon } from "@shopify/polaris-icons";
 import type { Bundle, BundleStep, CreateBundleRequest, UpdateBundleRequest } from "~/types/bundle";
 import { ProductPicker } from "./ProductPicker";
 
@@ -59,6 +60,44 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
     status: bundle?.status || "draft" as "active" | "draft" | "inactive",
     discountType: bundle?.discountType || "percentage" as "percentage" | "fixed" | "total",
     discountValue: bundle?.discountValue?.toString() || "",
+    layoutType: bundle?.layoutType || "grid" as "grid" | "slider" | "modal" | "selection",
+    mobileColumns: bundle?.mobileColumns || 2,
+    desktopColumns: bundle?.desktopColumns || 4,
+    layoutSettings: bundle?.layoutSettings || {
+      gridSettings: {
+        productsPerRow: {
+          mobile: 2 as 1 | 2,
+          tablet: 3 as 2 | 3 | 4,
+          desktop: 4 as 3 | 4 | 5 | 6,
+        },
+        enableQuickAdd: true,
+        imagePosition: "top" as "top" | "left",
+      },
+      sliderSettings: {
+        slidesToShow: {
+          mobile: 1 as 1 | 2,
+          tablet: 2 as 2 | 3,
+          desktop: 4 as 3 | 4 | 5,
+        },
+        slidesToScroll: 1,
+        infiniteLoop: true,
+        autoplay: false,
+        autoplaySpeed: 5000,
+        enableThumbnails: false,
+      },
+      modalSettings: {
+        triggerType: "button" as "button" | "auto" | "exit-intent",
+        modalBehavior: "stayOpen" as "closeOnAdd" | "stayOpen" | "redirectToCart",
+        blockPageScroll: true,
+        modalSize: "fixed" as "productCount" | "fixed",
+      },
+      selectionSettings: {
+        selectionMode: "click" as "click" | "drag" | "both",
+        emptySlotBehavior: "show" as "hide" | "show" | "showGhost",
+        progressTracking: "counter" as "counter" | "percentage" | "visual",
+        selectionLimit: 10,
+      },
+    },
   });
 
   const [steps, setSteps] = useState<FormStep[]>(() => {
@@ -140,11 +179,16 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
   // Fetch details for all selected products on mount and when steps change
   useEffect(() => {
     const allProductIds = steps.flatMap(step => step.products.map(p => p.id));
-    if (allProductIds.length > 0) {
-      console.log('Fetching product details for:', allProductIds);
-      fetchProductDetails(allProductIds);
+    const uniqueProductIds = [...new Set(allProductIds)]; // Remove duplicates
+    
+    // Check if we need to fetch any new products
+    const newProductIds = uniqueProductIds.filter(id => !productDetails[id]);
+    
+    if (newProductIds.length > 0) {
+      console.log('Fetching product details for:', newProductIds);
+      fetchProductDetails(newProductIds);
     }
-  }, [steps.length, fetchProductDetails]);
+  }, [steps, fetchProductDetails, productDetails]);
 
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
@@ -198,16 +242,15 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
       return;
     }
 
-    // Use the first step's layout settings as the global defaults
-    const firstStep = steps[0];
     const data: CreateBundleRequest | UpdateBundleRequest = {
       title: formData.title,
       status: formData.status as "active" | "draft",
       discountType: formData.discountType as "percentage" | "fixed" | "total",
       discountValue: parseFloat(formData.discountValue),
-      layoutType: (firstStep?.displayType || "grid") as "grid" | "slider" | "portrait" | "landscape",
-      mobileColumns: firstStep?.mobileColumns || 2,
-      desktopColumns: firstStep?.desktopColumns || 4,
+      layoutType: formData.layoutType as "grid" | "slider" | "modal" | "selection",
+      mobileColumns: formData.mobileColumns,
+      desktopColumns: formData.desktopColumns,
+      layoutSettings: formData.layoutSettings,
       steps: steps.map((step, index) => ({
         title: step.title,
         description: step.description || undefined,
@@ -308,8 +351,8 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
   const layoutOptions = [
     { label: "Grid", value: "grid" },
     { label: "Slider", value: "slider" },
-    { label: "Portrait", value: "portrait" },
-    { label: "Landscape", value: "landscape" },
+    { label: "Modal", value: "modal" },
+    { label: "Selection Box", value: "selection" },
   ];
 
   const mobileColumnOptions = [
@@ -398,6 +441,829 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
           </BlockStack>
         </Card>
 
+        {/* Layout Configuration */}
+        <Card>
+          <BlockStack gap="400">
+            <Box>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h2">
+                  Layout Configuration
+                </Text>
+                <Text variant="bodySm" tone="subdued" as="p">
+                  Choose how your bundle will be displayed to customers
+                </Text>
+              </BlockStack>
+            </Box>
+            
+            {/* Visual Layout Chooser */}
+            <Box>
+              <Grid columns={{ xs: 2, sm: 3, md: 4, lg: 6 }} gap="400">
+                {/* Grid Layout Card */}
+                <Box>
+                  <div
+                    onClick={() => setFormData({ ...formData, layoutType: 'grid' })}
+                    style={{ 
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <Card
+                      background={formData.layoutType === 'grid' ? 'bg-surface-selected' : 'bg-surface'}
+                      padding="400"
+                      style={{ 
+                        border: formData.layoutType === 'grid' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
+                        transition: 'all 0.15s ease',
+                        height: '100%'
+                      }}
+                    >
+                      <BlockStack gap="300" inlineAlign="center">
+                        {/* Grid SVG Icon */}
+                        <Box width="100px" height="100px">
+                          <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            {/* Product cards in 2x2 grid */}
+                            <rect x="10" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="53" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="10" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="53" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+                            
+                            {/* Placeholder content in cards */}
+                            <rect x="16" y="16" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="59" y="16" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="16" y="59" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="59" y="59" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            
+                            {/* Text lines */}
+                            <rect x="16" y="38" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="59" y="38" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="16" y="81" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="59" y="81" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                          </svg>
+                        </Box>
+                        <Text variant="bodyLg" fontWeight="medium" alignment="center">
+                          Grid
+                        </Text>
+                        {formData.layoutType === 'grid' && (
+                          <Box position="absolute" insetBlockStart="200" insetInlineEnd="200">
+                            <Icon source={CheckIcon} tone="success" />
+                          </Box>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  </div>
+                </Box>
+
+                {/* Slider Layout Card */}
+                <Box>
+                  <div
+                    onClick={() => setFormData({ ...formData, layoutType: 'slider' })}
+                    style={{ 
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <Card
+                      background={formData.layoutType === 'slider' ? 'bg-surface-selected' : 'bg-surface'}
+                      padding="400"
+                      style={{ 
+                        border: formData.layoutType === 'slider' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
+                        transition: 'all 0.15s ease',
+                        height: '100%'
+                      }}
+                    >
+                      <BlockStack gap="300" inlineAlign="center">
+                        <Box width="100px" height="100px">
+                          <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            {/* Navigation arrows */}
+                            <path d="M15 50L24 41L24 59L15 50Z" fill="#8C9196" fillOpacity="0.5"/>
+                            <path d="M85 50L76 59L76 41L85 50Z" fill="#8C9196" fillOpacity="0.5"/>
+                            
+                            {/* Center card (active) */}
+                            <rect x="30" y="20" width="40" height="50" rx="4" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="2"/>
+                            <rect x="37" y="28" width="26" height="26" rx="2" fill="#8C9196" fillOpacity="0.4"/>
+                            <rect x="37" y="58" width="26" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
+                            <rect x="37" y="63" width="18" height="2" rx="1" fill="#8C9196" fillOpacity="0.4"/>
+                            
+                            {/* Side cards (partially visible) */}
+                            <rect x="12" y="25" width="15" height="40" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.3"/>
+                            <rect x="73" y="25" width="15" height="40" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.3"/>
+                            
+                            {/* Dots indicator */}
+                            <circle cx="40" cy="82" r="2.5" fill="#8C9196" fillOpacity="0.3"/>
+                            <circle cx="50" cy="82" r="3" fill="#8C9196" fillOpacity="0.8"/>
+                            <circle cx="60" cy="82" r="2.5" fill="#8C9196" fillOpacity="0.3"/>
+                          </svg>
+                        </Box>
+                        <Text variant="bodyLg" fontWeight="medium" alignment="center">
+                          Slider
+                        </Text>
+                        {formData.layoutType === 'slider' && (
+                          <Box position="absolute" insetBlockStart="200" insetInlineEnd="200">
+                            <Icon source={CheckIcon} tone="success" />
+                          </Box>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  </div>
+                </Box>
+
+
+                {/* Modal Layout Card */}
+                <Box>
+                  <div
+                    onClick={() => setFormData({ ...formData, layoutType: 'modal' })}
+                    style={{ 
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <Card
+                      background={formData.layoutType === 'modal' ? 'bg-surface-selected' : 'bg-surface'}
+                      padding="400"
+                      style={{ 
+                        border: formData.layoutType === 'modal' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
+                        transition: 'all 0.15s ease',
+                        height: '100%'
+                      }}
+                    >
+                      <BlockStack gap="300" inlineAlign="center">
+                        <Box width="100px" height="100px">
+                          <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            {/* Background overlay */}
+                            <rect x="0" y="0" width="100" height="100" fill="#000000" fillOpacity="0.1" rx="4"/>
+                            
+                            {/* Modal window sliding from right */}
+                            <rect x="35" y="15" width="60" height="70" rx="4" fill="#FFFFFF" stroke="#8C9196" strokeWidth="2"/>
+                            
+                            {/* Modal header */}
+                            <rect x="35" y="15" width="60" height="12" rx="4 4 0 0" fill="#8C9196" fillOpacity="0.1"/>
+                            <circle cx="88" cy="21" r="3" fill="#8C9196" fillOpacity="0.5"/>
+                            
+                            {/* Modal content - steps */}
+                            <rect x="42" y="32" width="46" height="8" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="42" y="43" width="46" height="8" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="42" y="54" width="46" height="8" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            
+                            {/* Products in modal */}
+                            <rect x="42" y="66" width="10" height="10" rx="2" fill="#8C9196" fillOpacity="0.4"/>
+                            <rect x="54" y="66" width="10" height="10" rx="2" fill="#8C9196" fillOpacity="0.4"/>
+                            <rect x="66" y="66" width="10" height="10" rx="2" fill="#8C9196" fillOpacity="0.4"/>
+                            <rect x="78" y="66" width="10" height="10" rx="2" fill="#8C9196" fillOpacity="0.4"/>
+                            
+                            {/* Main page content (partially visible) */}
+                            <rect x="5" y="20" width="25" height="30" rx="3" fill="#8C9196" fillOpacity="0.1"/>
+                            <rect x="5" y="55" width="25" height="30" rx="3" fill="#8C9196" fillOpacity="0.1"/>
+                            
+                            {/* Arrow indicating slide direction */}
+                            <path d="M30 50L25 45L25 55L30 50Z" fill="#8C9196" fillOpacity="0.6"/>
+                          </svg>
+                        </Box>
+                        <Text variant="bodyLg" fontWeight="medium" alignment="center">
+                          Modal
+                        </Text>
+                        {formData.layoutType === 'modal' && (
+                          <Box position="absolute" insetBlockStart="200" insetInlineEnd="200">
+                            <Icon source={CheckIcon} tone="success" />
+                          </Box>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  </div>
+                </Box>
+
+                {/* Selection Box Layout Card */}
+                <Box>
+                  <div
+                    onClick={() => setFormData({ ...formData, layoutType: 'selection' })}
+                    style={{ 
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <Card
+                      background={formData.layoutType === 'selection' ? 'bg-surface-selected' : 'bg-surface'}
+                      padding="400"
+                      style={{ 
+                        border: formData.layoutType === 'selection' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
+                        transition: 'all 0.15s ease',
+                        height: '100%'
+                      }}
+                    >
+                      <BlockStack gap="300" inlineAlign="center">
+                        <Box width="100px" height="100px">
+                          <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            {/* Empty slots container */}
+                            <rect x="10" y="10" width="80" height="55" rx="4" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1.5" strokeDasharray="4 2"/>
+                            
+                            {/* Empty slots */}
+                            <rect x="15" y="15" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#8C9196" strokeWidth="1" strokeDasharray="3 2"/>
+                            <rect x="39" y="15" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#8C9196" strokeWidth="1" strokeDasharray="3 2"/>
+                            <rect x="63" y="15" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#8C9196" strokeWidth="1" strokeDasharray="3 2"/>
+                            <rect x="15" y="39" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#8C9196" strokeWidth="1" strokeDasharray="3 2"/>
+                            
+                            {/* Filled slots */}
+                            <rect x="39" y="39" width="22" height="22" rx="3" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="63" y="39" width="22" height="22" rx="3" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
+                            
+                            {/* Plus signs in empty slots */}
+                            <path d="M26 20L26 32M20 26L32 26" stroke="#8C9196" strokeWidth="2" strokeOpacity="0.5" strokeLinecap="round"/>
+                            <path d="M50 20L50 32M44 26L56 26" stroke="#8C9196" strokeWidth="2" strokeOpacity="0.5" strokeLinecap="round"/>
+                            <path d="M74 20L74 32M68 26L80 26" stroke="#8C9196" strokeWidth="2" strokeOpacity="0.5" strokeLinecap="round"/>
+                            <path d="M26 44L26 56M20 50L32 50" stroke="#8C9196" strokeWidth="2" strokeOpacity="0.5" strokeLinecap="round"/>
+                            
+                            {/* Content in filled slots */}
+                            <rect x="43" y="43" width="14" height="10" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="43" y="56" width="10" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
+                            <rect x="67" y="43" width="14" height="10" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="67" y="56" width="10" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
+                            
+                            {/* Available products below */}
+                            <rect x="15" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                            <rect x="35" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                            <rect x="55" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                            
+                            {/* Arrow showing movement */}
+                            <path d="M43 72L43 66L47 66L47 72" stroke="#8C9196" strokeWidth="1.5" strokeOpacity="0.6" fill="none" markerEnd="url(#arrowhead)"/>
+                            <defs>
+                              <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                                <polygon points="0 0, 6 3, 0 6" fill="#8C9196" fillOpacity="0.6" />
+                              </marker>
+                            </defs>
+                          </svg>
+                        </Box>
+                        <Text variant="bodyLg" fontWeight="medium" alignment="center">
+                          Selection Box
+                        </Text>
+                        {formData.layoutType === 'selection' && (
+                          <Box position="absolute" insetBlockStart="200" insetInlineEnd="200">
+                            <Icon source={CheckIcon} tone="success" />
+                          </Box>
+                        )}
+                      </BlockStack>
+                    </Card>
+                  </div>
+                </Box>
+              </Grid>
+            </Box>
+
+            {/* Column settings for applicable layouts */}
+            {['grid', 'slider'].includes(formData.layoutType) && (
+              <Box>
+                <Divider />
+                <Box paddingBlockStart="400">
+                  <FormLayout>
+                    <Text variant="headingSm" as="h4" fontWeight="semibold">
+                      Column settings
+                    </Text>
+                    <FormLayout.Group>
+                      <Select
+                        label="Mobile columns"
+                        options={mobileColumnOptions}
+                        value={formData.mobileColumns.toString()}
+                        onChange={(value) => setFormData({ ...formData, mobileColumns: parseInt(value) })}
+                        helpText="Number of columns on mobile devices"
+                      />
+                      <Select
+                        label="Desktop columns"
+                        options={desktopColumnOptions}
+                        value={formData.desktopColumns.toString()}
+                        onChange={(value) => setFormData({ ...formData, desktopColumns: parseInt(value) })}
+                        helpText="Number of columns on desktop"
+                      />
+                    </FormLayout.Group>
+                  </FormLayout>
+                </Box>
+              </Box>
+            )}
+
+            {/* Grid-specific settings */}
+            {formData.layoutType === 'grid' && (
+              <Box>
+                <Divider />
+                <Box paddingBlockStart="400">
+                  <BlockStack gap="400">
+                    <Text variant="headingSm" as="h4" fontWeight="semibold">
+                      Grid Settings
+                    </Text>
+                    
+                    <FormLayout>
+                      <Text variant="bodyMd" fontWeight="medium">Products per row</Text>
+                      <FormLayout.Group>
+                        <Select
+                          label="Mobile"
+                          options={[
+                            { label: "1 product", value: "1" },
+                            { label: "2 products", value: "2" },
+                          ]}
+                          value={formData.layoutSettings.gridSettings.productsPerRow.mobile.toString()}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            layoutSettings: {
+                              ...formData.layoutSettings,
+                              gridSettings: {
+                                ...formData.layoutSettings.gridSettings,
+                                productsPerRow: {
+                                  ...formData.layoutSettings.gridSettings.productsPerRow,
+                                  mobile: parseInt(value) as 1 | 2
+                                }
+                              }
+                            }
+                          })}
+                        />
+                        <Select
+                          label="Tablet"
+                          options={[
+                            { label: "2 products", value: "2" },
+                            { label: "3 products", value: "3" },
+                            { label: "4 products", value: "4" },
+                          ]}
+                          value={formData.layoutSettings.gridSettings.productsPerRow.tablet.toString()}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            layoutSettings: {
+                              ...formData.layoutSettings,
+                              gridSettings: {
+                                ...formData.layoutSettings.gridSettings,
+                                productsPerRow: {
+                                  ...formData.layoutSettings.gridSettings.productsPerRow,
+                                  tablet: parseInt(value) as 2 | 3 | 4
+                                }
+                              }
+                            }
+                          })}
+                        />
+                        <Select
+                          label="Desktop"
+                          options={[
+                            { label: "3 products", value: "3" },
+                            { label: "4 products", value: "4" },
+                            { label: "5 products", value: "5" },
+                            { label: "6 products", value: "6" },
+                          ]}
+                          value={formData.layoutSettings.gridSettings.productsPerRow.desktop.toString()}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            layoutSettings: {
+                              ...formData.layoutSettings,
+                              gridSettings: {
+                                ...formData.layoutSettings.gridSettings,
+                                productsPerRow: {
+                                  ...formData.layoutSettings.gridSettings.productsPerRow,
+                                  desktop: parseInt(value) as 3 | 4 | 5 | 6
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      </FormLayout.Group>
+
+                      <Checkbox
+                        label="Enable quick add"
+                        helpText="Allow customers to quickly add products to cart without opening product details"
+                        checked={formData.layoutSettings.gridSettings.enableQuickAdd}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            gridSettings: {
+                              ...formData.layoutSettings.gridSettings,
+                              enableQuickAdd: value
+                            }
+                          }
+                        })}
+                      />
+
+                      <BlockStack gap="200">
+                        <Text variant="bodyMd" fontWeight="medium">Image position</Text>
+                        <BlockStack gap="200">
+                          <RadioButton
+                            label="Top"
+                            helpText="Image above product details"
+                            checked={formData.layoutSettings.gridSettings.imagePosition === 'top'}
+                            id="imagePositionTop"
+                            name="imagePosition"
+                            onChange={() => setFormData({
+                              ...formData,
+                              layoutSettings: {
+                                ...formData.layoutSettings,
+                                gridSettings: {
+                                  ...formData.layoutSettings.gridSettings,
+                                  imagePosition: 'top'
+                                }
+                              }
+                            })}
+                          />
+                          <RadioButton
+                            label="Left"
+                            helpText="Image to the left of product details"
+                            checked={formData.layoutSettings.gridSettings.imagePosition === 'left'}
+                            id="imagePositionLeft"
+                            name="imagePosition"
+                            onChange={() => setFormData({
+                              ...formData,
+                              layoutSettings: {
+                                ...formData.layoutSettings,
+                                gridSettings: {
+                                  ...formData.layoutSettings.gridSettings,
+                                  imagePosition: 'left'
+                                }
+                              }
+                            })}
+                          />
+                        </BlockStack>
+                      </BlockStack>
+                    </FormLayout>
+                  </BlockStack>
+                </Box>
+              </Box>
+            )}
+
+            {/* Slider-specific settings */}
+            {formData.layoutType === 'slider' && (
+              <Box>
+                <Divider />
+                <Box paddingBlockStart="400">
+                  <BlockStack gap="400">
+                    <Text variant="headingSm" as="h4" fontWeight="semibold">
+                      Slider Settings
+                    </Text>
+                    
+                    <FormLayout>
+                      <Text variant="bodyMd" fontWeight="medium">Slides to show</Text>
+                      <FormLayout.Group>
+                        <Select
+                          label="Mobile"
+                          options={[
+                            { label: "1 slide", value: "1" },
+                            { label: "2 slides", value: "2" },
+                          ]}
+                          value={formData.layoutSettings.sliderSettings.slidesToShow.mobile.toString()}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            layoutSettings: {
+                              ...formData.layoutSettings,
+                              sliderSettings: {
+                                ...formData.layoutSettings.sliderSettings,
+                                slidesToShow: {
+                                  ...formData.layoutSettings.sliderSettings.slidesToShow,
+                                  mobile: parseInt(value) as 1 | 2
+                                }
+                              }
+                            }
+                          })}
+                        />
+                        <Select
+                          label="Tablet"
+                          options={[
+                            { label: "2 slides", value: "2" },
+                            { label: "3 slides", value: "3" },
+                          ]}
+                          value={formData.layoutSettings.sliderSettings.slidesToShow.tablet.toString()}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            layoutSettings: {
+                              ...formData.layoutSettings,
+                              sliderSettings: {
+                                ...formData.layoutSettings.sliderSettings,
+                                slidesToShow: {
+                                  ...formData.layoutSettings.sliderSettings.slidesToShow,
+                                  tablet: parseInt(value) as 2 | 3
+                                }
+                              }
+                            }
+                          })}
+                        />
+                        <Select
+                          label="Desktop"
+                          options={[
+                            { label: "3 slides", value: "3" },
+                            { label: "4 slides", value: "4" },
+                            { label: "5 slides", value: "5" },
+                          ]}
+                          value={formData.layoutSettings.sliderSettings.slidesToShow.desktop.toString()}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            layoutSettings: {
+                              ...formData.layoutSettings,
+                              sliderSettings: {
+                                ...formData.layoutSettings.sliderSettings,
+                                slidesToShow: {
+                                  ...formData.layoutSettings.sliderSettings.slidesToShow,
+                                  desktop: parseInt(value) as 3 | 4 | 5
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      </FormLayout.Group>
+
+                      <TextField
+                        label="Slides to scroll"
+                        type="number"
+                        value={formData.layoutSettings.sliderSettings.slidesToScroll.toString()}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            sliderSettings: {
+                              ...formData.layoutSettings.sliderSettings,
+                              slidesToScroll: parseInt(value) || 1
+                            }
+                          }
+                        })}
+                        helpText="Number of slides to scroll at a time"
+                        min={1}
+                      />
+
+                      <Checkbox
+                        label="Infinite loop"
+                        helpText="Continue scrolling from the beginning after reaching the end"
+                        checked={formData.layoutSettings.sliderSettings.infiniteLoop}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            sliderSettings: {
+                              ...formData.layoutSettings.sliderSettings,
+                              infiniteLoop: value
+                            }
+                          }
+                        })}
+                      />
+
+                      <Checkbox
+                        label="Autoplay"
+                        helpText="Automatically advance slides"
+                        checked={formData.layoutSettings.sliderSettings.autoplay}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            sliderSettings: {
+                              ...formData.layoutSettings.sliderSettings,
+                              autoplay: value
+                            }
+                          }
+                        })}
+                      />
+
+                      {formData.layoutSettings.sliderSettings.autoplay && (
+                        <TextField
+                          label="Autoplay speed (ms)"
+                          type="number"
+                          value={formData.layoutSettings.sliderSettings.autoplaySpeed.toString()}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            layoutSettings: {
+                              ...formData.layoutSettings,
+                              sliderSettings: {
+                                ...formData.layoutSettings.sliderSettings,
+                                autoplaySpeed: parseInt(value) || 5000
+                              }
+                            }
+                          })}
+                          helpText="Time between slide transitions in milliseconds"
+                          min={1000}
+                          max={10000}
+                        />
+                      )}
+
+                      <Checkbox
+                        label="Enable thumbnails"
+                        helpText="Show thumbnail navigation below the slider"
+                        checked={formData.layoutSettings.sliderSettings.enableThumbnails}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            sliderSettings: {
+                              ...formData.layoutSettings.sliderSettings,
+                              enableThumbnails: value
+                            }
+                          }
+                        })}
+                      />
+                    </FormLayout>
+                  </BlockStack>
+                </Box>
+              </Box>
+            )}
+
+            {/* Modal-specific settings */}
+            {formData.layoutType === 'modal' && (
+              <Box>
+                <Divider />
+                <Box paddingBlockStart="400">
+                  <BlockStack gap="400">
+                    <Text variant="headingSm" as="h4" fontWeight="semibold">
+                      Modal Settings
+                    </Text>
+                    
+                    <FormLayout>
+                      <Select
+                        label="Trigger type"
+                        options={[
+                          { label: "Button", value: "button" },
+                          { label: "Auto open", value: "auto" },
+                          { label: "Exit intent", value: "exit-intent" },
+                        ]}
+                        value={formData.layoutSettings.modalSettings.triggerType}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            modalSettings: {
+                              ...formData.layoutSettings.modalSettings,
+                              triggerType: value as "button" | "auto" | "exit-intent"
+                            }
+                          }
+                        })}
+                        helpText="How the modal should be triggered"
+                      />
+
+                      <Select
+                        label="Modal behavior"
+                        options={[
+                          { label: "Close on add", value: "closeOnAdd" },
+                          { label: "Stay open", value: "stayOpen" },
+                          { label: "Redirect to cart", value: "redirectToCart" },
+                        ]}
+                        value={formData.layoutSettings.modalSettings.modalBehavior}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            modalSettings: {
+                              ...formData.layoutSettings.modalSettings,
+                              modalBehavior: value as "closeOnAdd" | "stayOpen" | "redirectToCart"
+                            }
+                          }
+                        })}
+                        helpText="What happens after adding to cart"
+                      />
+
+                      <Checkbox
+                        label="Block page scroll"
+                        helpText="Prevent scrolling the main page when modal is open"
+                        checked={formData.layoutSettings.modalSettings.blockPageScroll}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            modalSettings: {
+                              ...formData.layoutSettings.modalSettings,
+                              blockPageScroll: value
+                            }
+                          }
+                        })}
+                      />
+
+                      <BlockStack gap="200">
+                        <Text variant="bodyMd" fontWeight="medium">Modal size</Text>
+                        <BlockStack gap="200">
+                          <RadioButton
+                            label="Product count"
+                            helpText="Modal size adjusts based on number of products"
+                            checked={formData.layoutSettings.modalSettings.modalSize === 'productCount'}
+                            id="modalSizeProductCount"
+                            name="modalSize"
+                            onChange={() => setFormData({
+                              ...formData,
+                              layoutSettings: {
+                                ...formData.layoutSettings,
+                                modalSettings: {
+                                  ...formData.layoutSettings.modalSettings,
+                                  modalSize: 'productCount'
+                                }
+                              }
+                            })}
+                          />
+                          <RadioButton
+                            label="Fixed"
+                            helpText="Modal has a fixed size regardless of content"
+                            checked={formData.layoutSettings.modalSettings.modalSize === 'fixed'}
+                            id="modalSizeFixed"
+                            name="modalSize"
+                            onChange={() => setFormData({
+                              ...formData,
+                              layoutSettings: {
+                                ...formData.layoutSettings,
+                                modalSettings: {
+                                  ...formData.layoutSettings.modalSettings,
+                                  modalSize: 'fixed'
+                                }
+                              }
+                            })}
+                          />
+                        </BlockStack>
+                      </BlockStack>
+                    </FormLayout>
+                  </BlockStack>
+                </Box>
+              </Box>
+            )}
+
+            {/* Selection Box settings */}
+            {formData.layoutType === 'selection' && (
+              <Box>
+                <Divider />
+                <Box paddingBlockStart="400">
+                  <BlockStack gap="400">
+                    <Text variant="headingSm" as="h4" fontWeight="semibold">
+                      Selection Box Settings
+                    </Text>
+                    
+                    <FormLayout>
+                      <Select
+                        label="Selection mode"
+                        options={[
+                          { label: "Click", value: "click" },
+                          { label: "Drag", value: "drag" },
+                          { label: "Both", value: "both" },
+                        ]}
+                        value={formData.layoutSettings.selectionSettings.selectionMode}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            selectionSettings: {
+                              ...formData.layoutSettings.selectionSettings,
+                              selectionMode: value as "click" | "drag" | "both"
+                            }
+                          }
+                        })}
+                        helpText="How customers can select products"
+                      />
+
+                      <Select
+                        label="Empty slot behavior"
+                        options={[
+                          { label: "Hide", value: "hide" },
+                          { label: "Show", value: "show" },
+                          { label: "Show ghost", value: "showGhost" },
+                        ]}
+                        value={formData.layoutSettings.selectionSettings.emptySlotBehavior}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            selectionSettings: {
+                              ...formData.layoutSettings.selectionSettings,
+                              emptySlotBehavior: value as "hide" | "show" | "showGhost"
+                            }
+                          }
+                        })}
+                        helpText="How to display empty selection slots"
+                      />
+
+                      <Select
+                        label="Progress tracking"
+                        options={[
+                          { label: "Counter", value: "counter" },
+                          { label: "Percentage", value: "percentage" },
+                          { label: "Visual", value: "visual" },
+                        ]}
+                        value={formData.layoutSettings.selectionSettings.progressTracking}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            selectionSettings: {
+                              ...formData.layoutSettings.selectionSettings,
+                              progressTracking: value as "counter" | "percentage" | "visual"
+                            }
+                          }
+                        })}
+                        helpText="How to show selection progress"
+                      />
+
+                      <TextField
+                        label="Selection limit"
+                        type="number"
+                        value={formData.layoutSettings.selectionSettings.selectionLimit.toString()}
+                        onChange={(value) => setFormData({
+                          ...formData,
+                          layoutSettings: {
+                            ...formData.layoutSettings,
+                            selectionSettings: {
+                              ...formData.layoutSettings.selectionSettings,
+                              selectionLimit: parseInt(value) || 10
+                            }
+                          }
+                        })}
+                        helpText="Maximum selections across all steps"
+                        min={1}
+                      />
+                    </FormLayout>
+                  </BlockStack>
+                </Box>
+              </Box>
+            )}
+          </BlockStack>
+        </Card>
 
         {/* Bundle Steps */}
         <Card>
@@ -635,14 +1501,18 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
                                                   </Box>
                                                   <Box paddingBlockStart="100">
                                                     <Text variant="bodyMd" fontWeight="medium" alignment="center" truncate>
-                                                      {details?.title || `Product ${productIndex + 1}`}
+                                                      {details?.title || "Loading..."}
                                                     </Text>
-                                                    {details?.priceRange && (
-                                                      <Text variant="bodySm" tone="subdued" alignment="center">
-                                                        ${details.priceRange.min}
-                                                        {details.priceRange.max !== details.priceRange.min && ` - $${details.priceRange.max}`}
-                                                      </Text>
-                                                    )}
+                                                    <Text variant="bodySm" tone="subdued" alignment="center">
+                                                      {details?.priceRange ? (
+                                                        <>
+                                                          ${details.priceRange.min}
+                                                          {details.priceRange.max !== details.priceRange.min && ` - $${details.priceRange.max}`}
+                                                        </>
+                                                      ) : (
+                                                        <>&nbsp;</>
+                                                      )}
+                                                    </Text>
                                                   </Box>
                                                 </BlockStack>
                                               </Box>
@@ -689,36 +1559,216 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
                       {/* Layout Tab */}
                       {activeTabPerStep[step.id] === 2 && (
                         <Box paddingBlockStart="400">
-                          <FormLayout>
+                          <BlockStack gap="400">
                             <Text variant="bodyMd" tone="subdued">
                               Configure how products are displayed in this step
                             </Text>
                             
-                            <Select
-                              label="Display type for this step"
-                              options={displayTypeOptions}
-                              value={step.displayType || 'grid'}
-                              onChange={(value) => updateStep(index, { displayType: value as any })}
-                              helpText="How products are displayed in this step"
-                            />
+                            {/* Visual Layout Chooser */}
+                            <Box>
+                              <Text variant="headingSm" as="h4" fontWeight="semibold">
+                                Choose display layout
+                              </Text>
+                              <Box paddingBlockStart="300">
+                                <InlineStack gap="400" align="start">
+                                  {/* Grid Layout Card */}
+                                  <Box width="150px">
+                                    <div
+                                      onClick={() => updateStep(index, { displayType: 'grid' })}
+                                      style={{ 
+                                        cursor: 'pointer',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden'
+                                      }}
+                                    >
+                                      <Card
+                                        background={step.displayType === 'grid' ? 'bg-surface-selected' : 'bg-surface'}
+                                        padding="400"
+                                        style={{ 
+                                          border: step.displayType === 'grid' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                      >
+                                        <BlockStack gap="300" inlineAlign="center">
+                                          {/* Grid SVG Icon */}
+                                          <Box width="80px" height="80px">
+                                            <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                              {/* Product cards in 2x2 grid */}
+                                              <rect x="8" y="8" width="30" height="30" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                                              <rect x="42" y="8" width="30" height="30" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                                              <rect x="8" y="42" width="30" height="30" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                                              <rect x="42" y="42" width="30" height="30" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                                              
+                                              {/* Placeholder content in cards */}
+                                              <rect x="13" y="13" width="20" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                                              <rect x="47" y="13" width="20" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                                              <rect x="13" y="47" width="20" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                                              <rect x="47" y="47" width="20" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                                              
+                                              {/* Text lines */}
+                                              <rect x="13" y="30" width="20" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                                              <rect x="47" y="30" width="20" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                                              <rect x="13" y="64" width="20" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                                              <rect x="47" y="64" width="20" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                                            </svg>
+                                          </Box>
+                                          <Text variant="bodyMd" fontWeight="medium" alignment="center">
+                                            Grid
+                                          </Text>
+                                          {step.displayType === 'grid' && (
+                                            <Box position="absolute" insetBlockStart="200" insetInlineEnd="200">
+                                              <Icon source={CheckIcon} tone="success" />
+                                            </Box>
+                                          )}
+                                        </BlockStack>
+                                      </Card>
+                                    </div>
+                                  </Box>
 
+                                  {/* Slider/Carousel Layout Card */}
+                                  <Box width="150px">
+                                    <div
+                                      onClick={() => updateStep(index, { displayType: 'carousel' })}
+                                      style={{ 
+                                        cursor: 'pointer',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden'
+                                      }}
+                                    >
+                                      <Card
+                                        background={step.displayType === 'carousel' ? 'bg-surface-selected' : 'bg-surface'}
+                                        padding="400"
+                                        style={{ 
+                                          border: step.displayType === 'carousel' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                      >
+                                        <BlockStack gap="300" inlineAlign="center">
+                                          {/* Slider SVG Icon */}
+                                          <Box width="80px" height="80px">
+                                            <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                              {/* Navigation arrows */}
+                                              <path d="M12 40L20 32L20 48L12 40Z" fill="#8C9196" fillOpacity="0.5"/>
+                                              <path d="M68 40L60 48L60 32L68 40Z" fill="#8C9196" fillOpacity="0.5"/>
+                                              
+                                              {/* Center card (active) */}
+                                              <rect x="25" y="16" width="30" height="40" rx="4" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
+                                              <rect x="30" y="22" width="20" height="20" rx="2" fill="#8C9196" fillOpacity="0.4"/>
+                                              <rect x="30" y="46" width="20" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
+                                              <rect x="30" y="50" width="14" height="2" rx="1" fill="#8C9196" fillOpacity="0.4"/>
+                                              
+                                              {/* Side cards (partially visible) */}
+                                              <rect x="10" y="20" width="12" height="32" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.3"/>
+                                              <rect x="58" y="20" width="12" height="32" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.3"/>
+                                              
+                                              {/* Dots indicator */}
+                                              <circle cx="32" cy="66" r="2" fill="#8C9196" fillOpacity="0.3"/>
+                                              <circle cx="40" cy="66" r="2.5" fill="#8C9196" fillOpacity="0.8"/>
+                                              <circle cx="48" cy="66" r="2" fill="#8C9196" fillOpacity="0.3"/>
+                                            </svg>
+                                          </Box>
+                                          <Text variant="bodyMd" fontWeight="medium" alignment="center">
+                                            Slider
+                                          </Text>
+                                          {step.displayType === 'carousel' && (
+                                            <Box position="absolute" insetBlockStart="200" insetInlineEnd="200">
+                                              <Icon source={CheckIcon} tone="success" />
+                                            </Box>
+                                          )}
+                                        </BlockStack>
+                                      </Card>
+                                    </div>
+                                  </Box>
+
+                                  {/* List/Accordion Layout Card */}
+                                  <Box width="150px">
+                                    <div
+                                      onClick={() => updateStep(index, { displayType: 'list' })}
+                                      style={{ 
+                                        cursor: 'pointer',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden'
+                                      }}
+                                    >
+                                      <Card
+                                        background={step.displayType === 'list' ? 'bg-surface-selected' : 'bg-surface'}
+                                        padding="400"
+                                        style={{ 
+                                          border: step.displayType === 'list' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                      >
+                                        <BlockStack gap="300" inlineAlign="center">
+                                          {/* Accordion SVG Icon */}
+                                          <Box width="80px" height="80px">
+                                            <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                              {/* Expanded section */}
+                                              <rect x="12" y="10" width="56" height="8" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                                              <path d="M60 14L64 11L64 17L60 14Z" fill="#8C9196" transform="rotate(90 62 14)"/>
+                                              
+                                              {/* Expanded content */}
+                                              <rect x="16" y="22" width="48" height="20" rx="2" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.2"/>
+                                              <rect x="20" y="26" width="20" height="12" rx="1" fill="#8C9196" fillOpacity="0.2"/>
+                                              <rect x="44" y="28" width="16" height="2" rx="1" fill="#8C9196" fillOpacity="0.4"/>
+                                              <rect x="44" y="32" width="12" height="2" rx="1" fill="#8C9196" fillOpacity="0.3"/>
+                                              
+                                              {/* Collapsed sections */}
+                                              <rect x="12" y="46" width="56" height="8" rx="2" fill="#8C9196" fillOpacity="0.2"/>
+                                              <path d="M60 50L63 47L57 47L60 50Z" fill="#8C9196" fillOpacity="0.6"/>
+                                              
+                                              <rect x="12" y="58" width="56" height="8" rx="2" fill="#8C9196" fillOpacity="0.2"/>
+                                              <path d="M60 62L63 59L57 59L60 62Z" fill="#8C9196" fillOpacity="0.6"/>
+                                              
+                                              <rect x="12" y="70" width="56" height="8" rx="2" fill="#8C9196" fillOpacity="0.15"/>
+                                              <path d="M60 74L63 71L57 71L60 74Z" fill="#8C9196" fillOpacity="0.5"/>
+                                            </svg>
+                                          </Box>
+                                          <Text variant="bodyMd" fontWeight="medium" alignment="center">
+                                            Accordion
+                                          </Text>
+                                          {step.displayType === 'list' && (
+                                            <Box position="absolute" insetBlockStart="200" insetInlineEnd="200">
+                                              <Icon source={CheckIcon} tone="success" />
+                                            </Box>
+                                          )}
+                                        </BlockStack>
+                                      </Card>
+                                    </div>
+                                  </Box>
+                                </InlineStack>
+                              </Box>
+                            </Box>
+
+                            {/* Column Options - Only show for Grid and Slider */}
                             {step.displayType !== 'list' && (
-                              <FormLayout.Group>
-                                <Select
-                                  label="Mobile columns"
-                                  options={mobileColumnOptions}
-                                  value={(step.mobileColumns || 2).toString()}
-                                  onChange={(value) => updateStep(index, { mobileColumns: parseInt(value) })}
-                                />
-                                <Select
-                                  label="Desktop columns"
-                                  options={desktopColumnOptions}
-                                  value={(step.desktopColumns || 4).toString()}
-                                  onChange={(value) => updateStep(index, { desktopColumns: parseInt(value) })}
-                                />
-                              </FormLayout.Group>
+                              <Box>
+                                <Divider />
+                                <Box paddingBlockStart="400">
+                                  <FormLayout>
+                                    <Text variant="headingSm" as="h4" fontWeight="semibold">
+                                      Column settings
+                                    </Text>
+                                    <FormLayout.Group>
+                                      <Select
+                                        label="Mobile columns"
+                                        options={mobileColumnOptions}
+                                        value={(step.mobileColumns || 2).toString()}
+                                        onChange={(value) => updateStep(index, { mobileColumns: parseInt(value) })}
+                                        helpText="Number of columns on mobile devices"
+                                      />
+                                      <Select
+                                        label="Desktop columns"
+                                        options={desktopColumnOptions}
+                                        value={(step.desktopColumns || 4).toString()}
+                                        onChange={(value) => updateStep(index, { desktopColumns: parseInt(value) })}
+                                        helpText="Number of columns on desktop"
+                                      />
+                                    </FormLayout.Group>
+                                  </FormLayout>
+                                </Box>
+                              </Box>
                             )}
-                          </FormLayout>
+                          </BlockStack>
                         </Box>
                       )}
                     </Tabs>
@@ -727,22 +1777,28 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
               ))}
             </BlockStack>
 
-            <Box paddingBlockStart="200">
-              <Button onClick={addStep} variant="primary" fullWidth>
-                Add step
-              </Button>
+            <Box paddingBlockStart="300">
+              <InlineStack align="center">
+                <Box width="200px">
+                  <Button onClick={addStep} variant="primary" fullWidth>
+                    Add step
+                  </Button>
+                </Box>
+              </InlineStack>
             </Box>
           </BlockStack>
         </Card>
 
         {/* Form Actions */}
-        <Box>
-          <ButtonGroup>
-            <Button onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
-            <Button variant="primary" submit loading={isSubmitting} disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : bundle ? "Update bundle" : "Create bundle"}
-            </Button>
-          </ButtonGroup>
+        <Box paddingBlockStart="400" paddingBlockEnd="800">
+          <InlineStack align="end">
+            <ButtonGroup>
+              <Button onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
+              <Button variant="primary" submit loading={isSubmitting} disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : bundle ? "Update bundle" : "Create bundle"}
+              </Button>
+            </ButtonGroup>
+          </InlineStack>
         </Box>
       </BlockStack>
 

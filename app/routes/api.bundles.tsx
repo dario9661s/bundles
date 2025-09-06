@@ -16,6 +16,7 @@ import type {
   ErrorResponse,
   ErrorCode,
   Bundle,
+  LayoutSettings,
 } from "~/types/bundle";
 
 function createErrorResponse(
@@ -31,6 +32,101 @@ function createErrorResponse(
     details,
   };
   return json(errorResponse, { status });
+}
+
+function validateLayoutSettings(layoutSettings: any, layoutType: string): string[] {
+  const errors: string[] = [];
+  
+  if (!layoutSettings) return errors;
+  
+  // Ensure only settings for the active layout type are present
+  const allowedSettings = {
+    grid: 'gridSettings',
+    slider: 'sliderSettings',
+    modal: 'modalSettings',
+    selection: 'selectionSettings',
+  };
+  
+  const expectedSetting = allowedSettings[layoutType as keyof typeof allowedSettings];
+  
+  // Check for invalid settings for the current layout type
+  Object.keys(allowedSettings).forEach((type) => {
+    const settingKey = allowedSettings[type as keyof typeof allowedSettings];
+    if (type !== layoutType && layoutSettings[settingKey]) {
+      errors.push(`${settingKey} is not allowed for layout type '${layoutType}'`);
+    }
+  });
+  
+  // Validate specific settings based on layout type
+  if (layoutType === 'grid' && layoutSettings.gridSettings) {
+    const grid = layoutSettings.gridSettings;
+    if (grid.productsPerRow) {
+      if (![1, 2].includes(grid.productsPerRow.mobile)) {
+        errors.push('Grid mobile products per row must be 1 or 2');
+      }
+      if (![2, 3, 4].includes(grid.productsPerRow.tablet)) {
+        errors.push('Grid tablet products per row must be 2, 3, or 4');
+      }
+      if (![3, 4, 5, 6].includes(grid.productsPerRow.desktop)) {
+        errors.push('Grid desktop products per row must be 3, 4, 5, or 6');
+      }
+    }
+    if (!['top', 'left'].includes(grid.imagePosition)) {
+      errors.push('Grid image position must be "top" or "left"');
+    }
+  }
+  
+  if (layoutType === 'slider' && layoutSettings.sliderSettings) {
+    const slider = layoutSettings.sliderSettings;
+    if (slider.slidesToShow) {
+      if (![1, 2].includes(slider.slidesToShow.mobile)) {
+        errors.push('Slider mobile slides to show must be 1 or 2');
+      }
+      if (![2, 3].includes(slider.slidesToShow.tablet)) {
+        errors.push('Slider tablet slides to show must be 2 or 3');
+      }
+      if (![3, 4, 5].includes(slider.slidesToShow.desktop)) {
+        errors.push('Slider desktop slides to show must be 3, 4, or 5');
+      }
+    }
+    if (typeof slider.slidesToScroll !== 'number' || slider.slidesToScroll < 1) {
+      errors.push('Slider slides to scroll must be a positive number');
+    }
+    if (typeof slider.autoplaySpeed !== 'number' || slider.autoplaySpeed < 1000) {
+      errors.push('Slider autoplay speed must be at least 1000 milliseconds');
+    }
+  }
+  
+  if (layoutType === 'modal' && layoutSettings.modalSettings) {
+    const modal = layoutSettings.modalSettings;
+    if (!['button', 'auto', 'exit-intent'].includes(modal.triggerType)) {
+      errors.push('Modal trigger type must be "button", "auto", or "exit-intent"');
+    }
+    if (!['closeOnAdd', 'stayOpen', 'redirectToCart'].includes(modal.modalBehavior)) {
+      errors.push('Modal behavior must be "closeOnAdd", "stayOpen", or "redirectToCart"');
+    }
+    if (!['productCount', 'fixed'].includes(modal.modalSize)) {
+      errors.push('Modal size must be "productCount" or "fixed"');
+    }
+  }
+  
+  if (layoutType === 'selection' && layoutSettings.selectionSettings) {
+    const selection = layoutSettings.selectionSettings;
+    if (!['click', 'drag', 'both'].includes(selection.selectionMode)) {
+      errors.push('Selection mode must be "click", "drag", or "both"');
+    }
+    if (!['hide', 'show', 'showGhost'].includes(selection.emptySlotBehavior)) {
+      errors.push('Empty slot behavior must be "hide", "show", or "showGhost"');
+    }
+    if (!['counter', 'percentage', 'visual'].includes(selection.progressTracking)) {
+      errors.push('Progress tracking must be "counter", "percentage", or "visual"');
+    }
+    if (typeof selection.selectionLimit !== 'number' || selection.selectionLimit < 1) {
+      errors.push('Selection limit must be a positive number');
+    }
+  }
+  
+  return errors;
 }
 
 function validateBundleData(data: any): string[] {
@@ -52,8 +148,8 @@ function validateBundleData(data: any): string[] {
     errors.push("Discount value must be a non-negative number");
   }
 
-  if (!["grid", "slider", "portrait", "landscape"].includes(data.layoutType)) {
-    errors.push("Layout type must be 'grid', 'slider', 'portrait', or 'landscape'");
+  if (!["grid", "slider", "modal", "selection"].includes(data.layoutType)) {
+    errors.push("Layout type must be 'grid', 'slider', 'modal', or 'selection'");
   }
 
   if (
@@ -118,6 +214,12 @@ function validateBundleData(data: any): string[] {
         });
       }
     });
+  }
+
+  // Validate layout settings if provided
+  if (data.layoutSettings) {
+    const layoutSettingsErrors = validateLayoutSettings(data.layoutSettings, data.layoutType);
+    errors.push(...layoutSettingsErrors);
   }
 
   return errors;
@@ -244,6 +346,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
       if (data.layoutType !== undefined) updateData.layoutType = data.layoutType;
       if (data.mobileColumns !== undefined) updateData.mobileColumns = data.mobileColumns;
       if (data.desktopColumns !== undefined) updateData.desktopColumns = data.desktopColumns;
+      if (data.layoutSettings !== undefined) {
+        // Validate layout settings for update
+        if (data.layoutType || updateData.layoutType) {
+          const layoutType = data.layoutType || updateData.layoutType;
+          const layoutSettingsErrors = validateLayoutSettings(data.layoutSettings, layoutType);
+          if (layoutSettingsErrors.length > 0) {
+            return createErrorResponse(
+              layoutSettingsErrors.join(", "),
+              "VALIDATION_ERROR",
+              400,
+              { errors: layoutSettingsErrors }
+            );
+          }
+        }
+        updateData.layoutSettings = data.layoutSettings;
+      }
       if (data.steps !== undefined) {
         updateData.steps = generateStepIds(data.steps);
       }
@@ -291,6 +409,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         mobileColumns: data.mobileColumns,
         desktopColumns: data.desktopColumns,
         steps: generateStepIds(data.steps),
+        layoutSettings: data.layoutSettings,
       };
 
       const result = await createBundle(admin, createData);

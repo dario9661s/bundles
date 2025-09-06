@@ -1,5 +1,5 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
-import type { Bundle, BundleStep, BundleProduct } from "../types/bundle";
+import type { Bundle, BundleStep, BundleProduct, LayoutSettings } from "../types/bundle";
 
 const METAOBJECT_TYPE = "mergely_bundle";
 
@@ -76,11 +76,64 @@ function parseFieldValue(field: MetaobjectField): any {
   }
 }
 
+function getDefaultLayoutSettings(layoutType: string): LayoutSettings {
+  const settings: LayoutSettings = {};
+  
+  switch (layoutType) {
+    case "grid":
+      settings.gridSettings = {
+        productsPerRow: {
+          mobile: 2,
+          tablet: 3,
+          desktop: 4,
+        },
+        enableQuickAdd: true,
+        imagePosition: "top",
+      };
+      break;
+    case "slider":
+      settings.sliderSettings = {
+        slidesToShow: {
+          mobile: 1,
+          tablet: 2,
+          desktop: 4,
+        },
+        slidesToScroll: 1,
+        infiniteLoop: true,
+        autoplay: false,
+        autoplaySpeed: 5000,
+        enableThumbnails: false,
+      };
+      break;
+    case "modal":
+      settings.modalSettings = {
+        triggerType: "button",
+        modalBehavior: "stayOpen",
+        blockPageScroll: true,
+        modalSize: "fixed",
+      };
+      break;
+    case "selection":
+      settings.selectionSettings = {
+        selectionMode: "click",
+        emptySlotBehavior: "show",
+        progressTracking: "counter",
+        selectionLimit: 10, // Default limit
+      };
+      break;
+  }
+  
+  return settings;
+}
+
 function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
   const fields = metaobject.fields.reduce((acc, field) => {
     acc[field.key] = parseFieldValue(field);
     return acc;
   }, {} as Record<string, any>);
+
+  const layoutType = fields.layout_type || "grid";
+  const layoutSettings = fields.layout_settings || getDefaultLayoutSettings(layoutType);
 
   return {
     id: metaobject.id,
@@ -89,12 +142,13 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
     status: fields.status || "draft",
     discountType: fields.discount_type || "percentage",
     discountValue: parseFloat(fields.discount_value) || 0,
-    layoutType: fields.layout_type || "grid",
+    layoutType,
     mobileColumns: parseInt(fields.mobile_columns) || 2,
     desktopColumns: parseInt(fields.desktop_columns) || 4,
     steps: fields.steps || [],
     createdAt: fields.created_at || new Date().toISOString(), // Use current time as fallback
     updatedAt: fields.updated_at || new Date().toISOString(), // Use current time as fallback
+    layoutSettings,
   };
 }
 
@@ -124,6 +178,9 @@ function bundleToFields(bundle: Partial<Bundle>): Array<{ key: string; value: st
   }
   if (bundle.steps !== undefined) {
     fields.push({ key: "steps", value: JSON.stringify(bundle.steps) });
+  }
+  if (bundle.layoutSettings !== undefined) {
+    fields.push({ key: "layout_settings", value: JSON.stringify(bundle.layoutSettings) });
   }
   
   // Always add updated timestamp for consistency
@@ -162,6 +219,7 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
               { key: "mobile_columns", type: "single_line_text_field", name: "Mobile Columns", required: true }
               { key: "desktop_columns", type: "single_line_text_field", name: "Desktop Columns", required: true }
               { key: "steps", type: "json", name: "Steps", required: true }
+              { key: "layout_settings", type: "json", name: "Layout Settings", required: false }
               { key: "created_at", type: "single_line_text_field", name: "Created At", required: false }
               { key: "updated_at", type: "single_line_text_field", name: "Updated At", required: false }
             ]

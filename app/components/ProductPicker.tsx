@@ -63,7 +63,7 @@ export function ProductPicker({
   // Filter states
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
   const [selectedProductTypes, setSelectedProductTypes] = useState<string[]>([]);
-  const [availableOnly, setAvailableOnly] = useState(false); // Changed to show all products by default
+  const [availableOnly, setAvailableOnly] = useState(false); // Show all products by default
 
   // Fetch products
   const fetchProducts = useCallback(async () => {

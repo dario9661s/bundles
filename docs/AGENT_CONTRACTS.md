@@ -471,6 +471,85 @@ interface AppBlockSettings {
 
 ---
 
+## 🤝 Contract 7: Layout-Specific Settings
+
+### Layout Settings Schema
+```typescript
+// Layout-specific structural settings (functional, not visual)
+interface LayoutSettings {
+  // Grid-specific settings
+  gridSettings?: {
+    productsPerRow: {
+      mobile: 1 | 2 // Default: 2
+      tablet: 2 | 3 | 4 // Default: 3
+      desktop: 3 | 4 | 5 | 6 // Default: 4
+    }
+    enableQuickAdd: boolean // Default: true
+    imagePosition: "top" | "left" // Default: "top" - changes HTML structure
+  }
+  
+  // Slider-specific settings
+  sliderSettings?: {
+    slidesToShow: {
+      mobile: 1 | 2 // Default: 1
+      tablet: 2 | 3 // Default: 2
+      desktop: 3 | 4 | 5 // Default: 4
+    }
+    slidesToScroll: number // Default: 1
+    infiniteLoop: boolean // Default: true
+    autoplay: boolean // Default: false
+    autoplaySpeed: number // milliseconds, Default: 5000
+    enableThumbnails: boolean // Default: false
+  }
+  
+  // Modal-specific settings
+  modalSettings?: {
+    triggerType: "button" | "auto" | "exit-intent" // Default: "button"
+    modalBehavior: "closeOnAdd" | "stayOpen" | "redirectToCart" // Default: "stayOpen"
+    blockPageScroll: boolean // Default: true
+    modalSize: "productCount" | "fixed" // Default: "fixed"
+  }
+  
+  // Selection Box settings (Build-your-box)
+  selectionSettings?: {
+    selectionMode: "click" | "drag" | "both" // Default: "click"
+    emptySlotBehavior: "hide" | "show" | "showGhost" // Default: "show"
+    progressTracking: "counter" | "percentage" | "visual" // Default: "counter"
+    selectionLimit: number // Max selections across all steps
+  }
+}
+
+// Extended Bundle interface with layout settings
+interface BundleWithLayoutSettings extends Bundle {
+  layoutSettings?: LayoutSettings
+}
+```
+
+### Update Bundle Request
+```typescript
+// Add to existing CreateBundleRequest and UpdateBundleRequest
+interface CreateBundleRequestWithSettings extends CreateBundleRequest {
+  layoutSettings?: LayoutSettings
+}
+```
+
+### Layout Settings Validation
+```typescript
+interface LayoutSettingsValidation {
+  validateGridSettings?: (settings: GridSettings) => ValidationResult
+  validateSliderSettings?: (settings: SliderSettings) => ValidationResult
+  validateModalSettings?: (settings: ModalSettings) => ValidationResult
+  validateSelectionSettings?: (settings: SelectionSettings) => ValidationResult
+}
+
+interface ValidationResult {
+  valid: boolean
+  errors?: string[]
+}
+```
+
+---
+
 ## ⚠️ Contract Rules
 
 1. **NO MODIFICATIONS** without updating both agents

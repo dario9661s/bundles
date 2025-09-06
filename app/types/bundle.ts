@@ -1,5 +1,49 @@
 // Bundle types based on AGENT_CONTRACTS.md Contract 1
 
+// Layout-specific settings from Contract 7
+export interface LayoutSettings {
+  // Grid-specific settings
+  gridSettings?: {
+    productsPerRow: {
+      mobile: 1 | 2; // Default: 2
+      tablet: 2 | 3 | 4; // Default: 3
+      desktop: 3 | 4 | 5 | 6; // Default: 4
+    };
+    enableQuickAdd: boolean; // Default: true
+    imagePosition: "top" | "left"; // Default: "top" - changes HTML structure
+  };
+  
+  // Slider-specific settings
+  sliderSettings?: {
+    slidesToShow: {
+      mobile: 1 | 2; // Default: 1
+      tablet: 2 | 3; // Default: 2
+      desktop: 3 | 4 | 5; // Default: 4
+    };
+    slidesToScroll: number; // Default: 1
+    infiniteLoop: boolean; // Default: true
+    autoplay: boolean; // Default: false
+    autoplaySpeed: number; // milliseconds, Default: 5000
+    enableThumbnails: boolean; // Default: false
+  };
+  
+  // Modal-specific settings
+  modalSettings?: {
+    triggerType: "button" | "auto" | "exit-intent"; // Default: "button"
+    modalBehavior: "closeOnAdd" | "stayOpen" | "redirectToCart"; // Default: "stayOpen"
+    blockPageScroll: boolean; // Default: true
+    modalSize: "productCount" | "fixed"; // Default: "fixed"
+  };
+  
+  // Selection Box settings (Build-your-box)
+  selectionSettings?: {
+    selectionMode: "click" | "drag" | "both"; // Default: "click"
+    emptySlotBehavior: "hide" | "show" | "showGhost"; // Default: "show"
+    progressTracking: "counter" | "percentage" | "visual"; // Default: "counter"
+    selectionLimit: number; // Max selections across all steps
+  };
+}
+
 export interface Bundle {
   id: string;
   handle: string;
@@ -7,12 +51,13 @@ export interface Bundle {
   status: "active" | "inactive" | "draft";
   discountType: "percentage" | "fixed" | "total";
   discountValue: number;
-  layoutType: "grid" | "slider" | "portrait" | "landscape";
+  layoutType: "grid" | "slider" | "modal" | "selection";
   mobileColumns: number; // 1-4
   desktopColumns: number; // 1-6
   steps: BundleStep[];
   createdAt: string; // ISO date
   updatedAt: string; // ISO date
+  layoutSettings?: LayoutSettings; // Added per Contract 7
 }
 
 export interface BundleStep {
@@ -58,9 +103,10 @@ export interface CreateBundleRequest {
   status: "active" | "draft";
   discountType: "percentage" | "fixed" | "total";
   discountValue: number;
-  layoutType: "grid" | "slider" | "portrait" | "landscape";
+  layoutType: "grid" | "slider" | "modal" | "selection";
   mobileColumns: number;
   desktopColumns: number;
+  layoutSettings?: LayoutSettings; // Added per Contract 7
   steps: Array<{
     title: string;
     description?: string;

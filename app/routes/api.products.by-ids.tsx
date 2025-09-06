@@ -23,7 +23,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             handle
             vendor
             productType
-            availableForSale
+            status
             featuredImage {
               url
             }
@@ -60,7 +60,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         featuredImage: product.featuredImage?.url || null,
         vendor: product.vendor || "",
         productType: product.productType || "",
-        availableForSale: product.availableForSale,
+        availableForSale: product.status === 'ACTIVE',
         priceRange: {
           min: product.priceRangeV2.minVariantPrice.amount,
           max: product.priceRangeV2.maxVariantPrice.amount

@@ -40,6 +40,6 @@ You are the backend specialist for Adsgun Bundles app. You implement server-side
 "Implement Bundle Management API per AGENT_CONTRACTS.md Contract 1"
 You would:
 1. Create `/app/services/bundle-metaobject.server.ts`
-2. Create `/app/routes/api.bundles.tsx` 
+2. Create `/app/routes/api.bundles.tsx`
 3. Follow exact types from contract
 4. Return data in specified format
