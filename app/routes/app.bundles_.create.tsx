@@ -49,23 +49,18 @@ export default function CreateBundlePage() {
     >
       <Layout>
         <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Text variant="headingMd" as="h2">
-                Create a New Product Bundle
-              </Text>
-              {error && (
-                <Banner status="critical" onDismiss={() => setError(null)}>
-                  {error}
-                </Banner>
-              )}
-              <BundleForm
-                onSubmit={handleSubmit}
-                onCancel={handleCancel}
-                isSubmitting={isSubmitting}
-              />
-            </BlockStack>
-          </Card>
+          <BlockStack gap="400">
+            {error && (
+              <Banner status="critical" onDismiss={() => setError(null)}>
+                {error}
+              </Banner>
+            )}
+            <BundleForm
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+              isSubmitting={isSubmitting}
+            />
+          </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>

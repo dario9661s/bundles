@@ -93,8 +93,8 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
     mobileColumns: parseInt(fields.mobile_columns) || 2,
     desktopColumns: parseInt(fields.desktop_columns) || 4,
     steps: fields.steps || [],
-    createdAt: new Date().toISOString(), // Use current time as fallback
-    updatedAt: new Date().toISOString(), // Use current time as fallback
+    createdAt: fields.created_at || new Date().toISOString(), // Use current time as fallback
+    updatedAt: fields.updated_at || new Date().toISOString(), // Use current time as fallback
   };
 }
 
@@ -125,6 +125,10 @@ function bundleToFields(bundle: Partial<Bundle>): Array<{ key: string; value: st
   if (bundle.steps !== undefined) {
     fields.push({ key: "steps", value: JSON.stringify(bundle.steps) });
   }
+  
+  // Always add updated timestamp for consistency
+  const now = new Date().toISOString();
+  fields.push({ key: "updated_at", value: now });
 
   return fields;
 }
@@ -158,6 +162,8 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
               { key: "mobile_columns", type: "single_line_text_field", name: "Mobile Columns", required: true }
               { key: "desktop_columns", type: "single_line_text_field", name: "Desktop Columns", required: true }
               { key: "steps", type: "json", name: "Steps", required: true }
+              { key: "created_at", type: "single_line_text_field", name: "Created At", required: false }
+              { key: "updated_at", type: "single_line_text_field", name: "Updated At", required: false }
             ]
           }
         ) {
@@ -275,6 +281,11 @@ export async function createBundle(
     console.log("Metaobject definition exists");
 
     const fields = bundleToFields(bundleData);
+    
+    // Add created_at timestamp for new bundles
+    const now = new Date().toISOString();
+    fields.push({ key: "created_at", value: now });
+    
     console.log("Bundle fields:", fields);
 
   const mutation = `

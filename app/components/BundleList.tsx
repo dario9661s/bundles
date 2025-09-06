@@ -129,7 +129,9 @@ export function BundleList({
                         {steps.length} {steps.length === 1 ? 'step' : 'steps'} • {discountText}
                       </Text>
                       <Text variant="bodySm" tone="subdued">
-                        Last updated: {new Date(updatedAt).toLocaleDateString()}
+                        <span suppressHydrationWarning>
+                          Last updated: {new Date(updatedAt).toLocaleDateString()}
+                        </span>
                       </Text>
                     </BlockStack>
                   </Box>

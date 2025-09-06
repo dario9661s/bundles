@@ -63,7 +63,7 @@ export function ProductPicker({
   // Filter states
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
   const [selectedProductTypes, setSelectedProductTypes] = useState<string[]>([]);
-  const [availableOnly, setAvailableOnly] = useState(true);
+  const [availableOnly, setAvailableOnly] = useState(false); // Changed to show all products by default
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
@@ -75,13 +75,23 @@ export function ProductPicker({
       if (searchQuery) params.append("query", searchQuery);
       params.append("limit", "50");
 
+      console.log('Fetching products with params:', params.toString());
       const response = await fetch(`/api/products/search?${params}`);
+      
+      if (!response.ok) {
+        console.error('Product search failed:', response.status, response.statusText);
+        setError(`Failed to load products: ${response.statusText}`);
+        return;
+      }
+      
       const data: ProductSearchResponse = await response.json();
+      console.log('Products received:', data);
 
       if ("error" in data) {
-        setError("Failed to load products");
+        setError(data.error || "Failed to load products");
       } else {
-        setProducts(data.products);
+        setProducts(data.products || []);
+        console.log(`Loaded ${data.products?.length || 0} products`);
       }
     } catch (err) {
       setError("Failed to load products");

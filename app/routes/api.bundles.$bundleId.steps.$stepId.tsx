@@ -10,7 +10,7 @@ import type {
   BundleStep,
   ErrorResponse,
   ErrorCode,
-} from "~/types/bundle.types";
+} from "~/types/bundle";
 
 function createErrorResponse(
   message: string,
