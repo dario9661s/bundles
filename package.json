@@ -1,5 +1,5 @@
 {
-  "name": "mergely-product-bundler",
+  "name": "adsgun-product-bundler",
   "private": true,
   "scripts": {
     "build": "remix vite:build",

@@ -54,14 +54,14 @@ This document lists all store-specific, developer-specific, and legacy code that
   - Current: `application_url = "https://arch-gzip-edinburgh-reynolds.trycloudflare.com"`
   - Change to: Your actual app URL or use ngrok for development
 
-- [ ] File: `shopify.app.mergely-product-bundler.toml` (line 6)
+- [ ] File: `shopify.app.adsgun-product-bundler.toml` (line 6)
   - Current: `application_url = "https://omosa-merge-function.codelayer.dev/"`
   - Change to: Your production URL
 
 - [ ] File: `shopify.app.toml` (lines 19-23)
   - Update all redirect URLs to match your domain
 
-- [ ] File: `shopify.app.mergely-product-bundler.toml` (lines 17-21)
+- [ ] File: `shopify.app.adsgun-product-bundler.toml` (lines 17-21)
   - Update all redirect URLs to match your domain
 
 ---
@@ -76,15 +76,15 @@ This document lists all store-specific, developer-specific, and legacy code that
 ### 2. **App Name Consistency**
 - [ ] File: `package.json` (line 2)
   - Current: `"name": "omosa-merge-function"`
-  - Change to: `"name": "mergely-product-bundler"`
+  - Change to: `"name": "adsgun-bundles"`
 
 - [ ] File: `shopify.app.toml` (line 4)
   - Current: `name = "omosa-merge-function-dev"`
-  - Change to: `name = "mergely-product-bundler-dev"`
+  - Change to: `name = "adsgun-bundles-dev"`
 
 - [ ] File: `shopify.app.toml` (line 5)
   - Current: `handle = "omosa-merge-function-dev"`
-  - Change to: `handle = "mergely-product-bundler-dev"`
+  - Change to: `handle = "adsgun-bundles-dev"`
 
 ---
 
@@ -95,7 +95,7 @@ This document lists all store-specific, developer-specific, and legacy code that
   - Current: `client_id = "b4792aa4a0204428b3a0162e4e3db103"`
   - Change to: Your dev app client ID
 
-- [ ] File: `shopify.app.mergely-product-bundler.toml` (line 3)
+- [ ] File: `shopify.app.adsgun-product-bundler.toml` (line 3)
   - Current: `client_id = "06be95de2a53f680adf9f4eea00c9275"`
   - Change to: Your production app client ID
 
@@ -115,8 +115,8 @@ SHOPIFY_API_SECRET=your_api_secret_here
 SCOPES=read_products,write_cart_transforms
 SHOPIFY_APP_URL=https://your-app-url.com
 
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/mergely
+# Database (Not needed - using Shopify metaobjects!)
+# DATABASE_URL=Not needed anymore
 
 # Cart Transform Function (REQUIRED)
 CART_TRANSFORM_FUNCTION_ID=your_function_id_here
@@ -138,6 +138,9 @@ SENTRY_DSN=
 .env.production
 shopify.app.*.toml
 !shopify.app.toml
+node_modules/
+dist/
+.cache/
 ```
 
 ---
@@ -147,7 +150,7 @@ shopify.app.*.toml
 ### 1. **Extension Name**
 - [ ] File: `extensions/merge-cart-transformer/locales/en.default.json`
   - Check for any "omosa" references
-  - Update to "Mergely" branding
+  - Update to "Adsgun Bundles" branding
 
 ### 2. **Database Migrations**
 - [ ] Review migration files for any hardcoded values
@@ -197,7 +200,7 @@ grep -r "codelayer" --exclude-dir=node_modules .
 grep -r -i "tobi" --exclude-dir=node_modules .
 
 # Update package name
-sed -i '' 's/omosa-merge-function/mergely-product-bundler/g' package.json
+sed -i '' 's/omosa-merge-function/adsgun-bundles/g' package.json
 
 # Remove author
 sed -i '' 's/"author": "tobiasdierich"/"author": ""/g' package.json

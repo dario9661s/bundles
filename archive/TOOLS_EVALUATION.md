@@ -1,4 +1,4 @@
-# 🚀 Tools & Services Evaluation for Mergely Bundle App
+# 🚀 Tools & Services Evaluation for Adsgun Bundle App
 
 ## Overview
 After discovering Gadget.dev (game-changer!), here's a ranked list of other tools/services that could significantly accelerate our development.

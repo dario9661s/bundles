@@ -2,7 +2,7 @@ function updateLineItemProperty(property, value) {
   const forms = document.querySelectorAll('form[action="/cart/add"]');
 
   forms.forEach(function (form) {
-    const existingInputs = document.querySelectorAll("[data-mergely='true']");
+    const existingInputs = document.querySelectorAll("[data-adsgun='true']");
     existingInputs.forEach((input) => input.remove());
 
     const lineItemPropertyInput = document.createElement("input");
@@ -10,7 +10,7 @@ function updateLineItemProperty(property, value) {
     lineItemPropertyInput.id = property;
     lineItemPropertyInput.name = `properties[${property}]`;
     lineItemPropertyInput.style.display = "none";
-    lineItemPropertyInput.dataset.mergely = "true";
+    lineItemPropertyInput.dataset.adsgun = "true";
 
     form.appendChild(lineItemPropertyInput);
 

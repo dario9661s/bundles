@@ -33,7 +33,7 @@ export default function Index() {
 
   return (
     <Page
-      title={"Mergely - Product Bundler"}
+      title={"Adsgun - Product Bundler"}
       primaryAction={{
         content: "Add Merge Configuration",
         url: "/app/new",
