@@ -47,7 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("Failed to load bundles:", error);
     return json({
       bundles: [],
-      pagination: { page: 1, limit: 10, total: 0, hasNext: false },
+      pagination: { page: 1, limit: 7, total: 0, hasNext: false },
       error: "Failed to load bundles. Please try again.",
     });
   }

@@ -35,6 +35,15 @@ interface BundleFormProps {
   onSubmit: (data: CreateBundleRequest | UpdateBundleRequest) => Promise<void>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  onFormStateChange?: (formState: {
+    title: string;
+    status: Bundle['status'];
+    layoutType: Bundle['layoutType'];
+    discountType: Bundle['discountType'];
+    discountValue: number;
+    steps: FormStep[];
+    isValid: boolean;
+  }) => void;
 }
 
 interface FormStep extends Omit<BundleStep, 'id'> {
@@ -53,7 +62,8 @@ interface FormStep extends Omit<BundleStep, 'id'> {
   desktopColumns?: number;
 }
 
-export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }: BundleFormProps) {
+export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, onFormStateChange }: BundleFormProps) {
+  const [selectedTab, setSelectedTab] = useState(0);
   const [productDetails, setProductDetails] = useState<Record<string, any>>({});
   const [formData, setFormData] = useState({
     title: bundle?.title || "",
@@ -235,6 +245,22 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
     return Object.keys(newErrors).length === 0;
   }, [formData, steps]);
 
+  // Notify parent component of form state changes
+  useEffect(() => {
+    if (onFormStateChange) {
+      const isValid = validateForm();
+      onFormStateChange({
+        title: formData.title,
+        status: formData.status,
+        layoutType: formData.layoutType,
+        discountType: formData.discountType,
+        discountValue: parseFloat(formData.discountValue) || 0,
+        steps,
+        isValid,
+      });
+    }
+  }, [formData, steps, onFormStateChange, validateForm]);
+
   const handleSubmit = useCallback(async () => {
     console.log("Form submitted, validating...");
     if (!validateForm()) {
@@ -402,10 +428,28 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
     { label: "Carousel", value: "carousel" },
   ];
 
+  const tabs = [
+    {
+      id: 'pricing',
+      content: 'Pricing',
+      accessibilityLabel: 'Pricing configuration',
+    },
+    {
+      id: 'layout',
+      content: 'Layout Configuration',
+      accessibilityLabel: 'Layout configuration',
+    },
+    {
+      id: 'steps',
+      content: 'Bundle Steps',
+      accessibilityLabel: 'Bundle steps configuration',
+    },
+  ];
+
   return (
     <Form onSubmit={handleSubmit}>
       <BlockStack gap="600">
-        {/* Basic Information */}
+        {/* Basic Information - Always visible */}
         <Card>
           <BlockStack gap="400">
             <Text variant="headingMd" as="h2">
@@ -430,59 +474,475 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
           </BlockStack>
         </Card>
 
-        {/* Pricing */}
-        <Card>
-          <BlockStack gap="400">
-            <Text variant="headingMd" as="h2">
-              Pricing
-            </Text>
-            <FormLayout>
-              <FormLayout.Group>
-                <Select
-                  label="Discount type"
-                  options={discountTypeOptions}
-                  value={formData.discountType}
-                  onChange={(value) => setFormData({ ...formData, discountType: value as any })}
-                />
-                <TextField
-                  label={
-                    formData.discountType === "percentage"
-                      ? "Percentage off"
-                      : formData.discountType === "fixed"
-                      ? "Amount off"
-                      : "Total price"
-                  }
-                  type="number"
-                  value={formData.discountValue}
-                  onChange={(value) => setFormData({ ...formData, discountValue: value })}
-                  autoComplete="off"
-                  error={errors.discountValue}
-                  requiredIndicator
-                  prefix={formData.discountType === "percentage" ? "" : "$"}
-                  suffix={formData.discountType === "percentage" ? "%" : ""}
-                />
-              </FormLayout.Group>
-            </FormLayout>
-          </BlockStack>
-        </Card>
+        {/* Tabbed Content */}
+        <Box>
+          <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
+            {/* Pricing Tab */}
+            {selectedTab === 0 && (
+              <Box paddingBlockStart="400">
+                <BlockStack gap="400">
+                  <FormLayout>
+                    <FormLayout.Group>
+                      <Select
+                        label="Discount type"
+                        options={discountTypeOptions}
+                        value={formData.discountType}
+                        onChange={(value) => setFormData({ ...formData, discountType: value as any })}
+                      />
+                      <TextField
+                        label="Discount value"
+                        type="number"
+                        value={formData.discountValue}
+                        onChange={(value) => setFormData({ ...formData, discountValue: value })}
+                        autoComplete="off"
+                        error={errors.discountValue}
+                        requiredIndicator
+                        prefix={formData.discountType === "percentage" ? "" : "$"}
+                        suffix={formData.discountType === "percentage" ? "%" : ""}
+                      />
+                    </FormLayout.Group>
+                  </FormLayout>
+                </BlockStack>
+              </Box>
+            )}
 
-        {/* Layout Configuration */}
-        <Card>
-          <BlockStack gap="400">
-            <Box>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h2">
-                  Layout Configuration
-                </Text>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  Choose how your bundle will be displayed to customers
-                </Text>
+            {/* Layout Configuration Tab */}
+            {selectedTab === 1 && (
+              <Box paddingBlockStart="400">
+                <BlockStack gap="400">
+                  {bundle ? (
+          // Edit page - Use radio buttons with images
+          <Card>
+            <BlockStack gap="400">
+              <Box>
+                <BlockStack gap="200">
+                  <Text variant="headingMd" as="h2">
+                    Layout Configuration
+                  </Text>
+                  <Text variant="bodySm" tone="subdued" as="p">
+                    Choose how your bundle will be displayed to customers
+                  </Text>
+                </BlockStack>
+              </Box>
+              
+              {/* Radio button layout selector for edit page */}
+              <Box width="100%">
+              <BlockStack gap="400">
+                {/* Grid Layout Option */}
+                <Box>
+                  <RadioButton
+                    label={
+                      <InlineStack gap="400" blockAlign="center">
+                        <Box width="60px" height="60px">
+                          <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="53" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="10" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="53" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="16" y="16" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="59" y="16" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="16" y="59" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="59" y="59" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="16" y="38" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="59" y="38" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="16" y="81" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="59" y="81" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
+                          </svg>
+                        </Box>
+                        <Box>
+                          <Text variant="bodyLg" fontWeight="semibold">Grid Layout</Text>
+                          <Text variant="bodySm" tone="subdued">Display products in a grid format</Text>
+                        </Box>
+                      </InlineStack>
+                    }
+                    checked={formData.layoutType === 'grid'}
+                    id="layout-grid-edit"
+                    onChange={() => setFormData({ ...formData, layoutType: 'grid' })}
+                  />
+                </Box>
+
+                {/* Slider Layout Option */}
+                <Box>
+                  <RadioButton
+                    label={
+                      <InlineStack gap="400" blockAlign="center">
+                        <Box width="60px" height="60px">
+                          <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 50L24 41L24 59L15 50Z" fill="#8C9196" fillOpacity="0.5"/>
+                            <path d="M85 50L76 59L76 41L85 50Z" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="30" y="20" width="40" height="50" rx="4" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="2"/>
+                            <rect x="5" y="30" width="22" height="30" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1"/>
+                            <rect x="73" y="30" width="22" height="30" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1"/>
+                            <rect x="35" y="25" width="30" height="22" rx="2" fill="#8C9196" fillOpacity="0.4"/>
+                            <rect x="35" y="52" width="30" height="3" rx="1.5" fill="#8C9196" fillOpacity="0.6"/>
+                            <rect x="35" y="58" width="22" height="2" rx="1" fill="#8C9196" fillOpacity="0.4"/>
+                            <circle cx="40" cy="82" r="2.5" fill="#8C9196" fillOpacity="0.3"/>
+                            <circle cx="50" cy="82" r="3" fill="#8C9196" fillOpacity="0.8"/>
+                            <circle cx="60" cy="82" r="2.5" fill="#8C9196" fillOpacity="0.3"/>
+                          </svg>
+                        </Box>
+                        <Box>
+                          <Text variant="bodyLg" fontWeight="semibold">Slider Layout</Text>
+                          <Text variant="bodySm" tone="subdued">Display products in a sliding carousel</Text>
+                        </Box>
+                      </InlineStack>
+                    }
+                    checked={formData.layoutType === 'slider'}
+                    id="layout-slider-edit"
+                    onChange={() => setFormData({ ...formData, layoutType: 'slider' })}
+                  />
+                </Box>
+
+                {/* Modal Layout Option */}
+                <Box>
+                  <RadioButton
+                    label={
+                      <InlineStack gap="400" blockAlign="center">
+                        <Box width="60px" height="60px">
+                          <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="15" y="10" width="70" height="80" rx="4" fill="#E3E5E7" fillOpacity="0.6" stroke="#8C9196" strokeOpacity="0.3" strokeWidth="1.5"/>
+                            <rect x="25" y="20" width="50" height="60" rx="4" fill="#FAFBFB" stroke="#8C9196" strokeWidth="2"/>
+                            <line x1="25" y1="35" x2="75" y2="35" stroke="#8C9196" strokeWidth="1.5" strokeOpacity="0.5"/>
+                            <rect x="65" y="24" width="6" height="6" rx="1" fill="#8C9196" fillOpacity="0.8"/>
+                            <rect x="33" y="44" width="34" height="20" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                            <rect x="38" y="49" width="24" height="10" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+                            <rect x="33" y="68" width="15" height="3" rx="1.5" fill="#8C9196" fillOpacity="0.5"/>
+                            <rect x="52" y="68" width="15" height="3" rx="1.5" fill="#00AA5E" fillOpacity="0.8"/>
+                          </svg>
+                        </Box>
+                        <Box>
+                          <Text variant="bodyLg" fontWeight="semibold">Modal Layout</Text>
+                          <Text variant="bodySm" tone="subdued">Display products in a popup modal</Text>
+                        </Box>
+                      </InlineStack>
+                    }
+                    checked={formData.layoutType === 'modal'}
+                    id="layout-modal-edit"
+                    onChange={() => setFormData({ ...formData, layoutType: 'modal' })}
+                  />
+                </Box>
+
+                {/* Selection Box Layout Option */}
+                <Box>
+                  <RadioButton
+                    label={
+                      <InlineStack gap="400" blockAlign="center">
+                        <Box width="60px" height="60px">
+                          <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="20" y="10" width="60" height="35" rx="4" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1.5" strokeDasharray="3 3"/>
+                            <text x="50" y="30" textAnchor="middle" fill="#8C9196" fontSize="12" fontFamily="Arial">Drop Here</text>
+                            <rect x="35" y="50" width="14" height="14" rx="3" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
+                            <rect x="52" y="56" width="9" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
+                            <rect x="52" y="50" width="14" height="14" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                            <rect x="67" y="56" width="10" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
+                            <rect x="15" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                            <rect x="35" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                            <rect x="55" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+                            <path d="M43 72L43 66L47 66L47 72" stroke="#8C9196" strokeWidth="1.5" strokeOpacity="0.6" fill="none" markerEnd="url(#arrowhead)"/>
+                            <defs>
+                              <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                                <polygon points="0 0, 6 3, 0 6" fill="#8C9196" fillOpacity="0.6" />
+                              </marker>
+                            </defs>
+                          </svg>
+                        </Box>
+                        <Box>
+                          <Text variant="bodyLg" fontWeight="semibold">Selection Box</Text>
+                          <Text variant="bodySm" tone="subdued">Display products with drag-and-drop selection</Text>
+                        </Box>
+                      </InlineStack>
+                    }
+                    checked={formData.layoutType === 'selection'}
+                    id="layout-selection-edit"
+                    onChange={() => setFormData({ ...formData, layoutType: 'selection' })}
+                  />
+                </Box>
               </BlockStack>
-            </Box>
-            
-            {/* Visual Layout Chooser */}
-            <Box>
-              <Grid columns={{ xs: 2, sm: 3, md: 4, lg: 6 }} gap="400">
+              </Box>
+              
+              {/* Column settings for edit page */}
+              {['grid', 'slider'].includes(formData.layoutType) && (
+                <Box>
+                  <Divider />
+                  <Box paddingBlockStart="400">
+                    <FormLayout>
+                      <Text variant="headingSm" as="h4" fontWeight="semibold">
+                        Column settings
+                      </Text>
+                      <FormLayout.Group>
+                        <Select
+                          label="Mobile columns"
+                          options={mobileColumnOptions}
+                          value={formData.mobileColumns.toString()}
+                          onChange={(value) => setFormData({ ...formData, mobileColumns: parseInt(value) })}
+                          helpText="Number of columns on mobile devices"
+                        />
+                        <Select
+                          label="Desktop columns"
+                          options={desktopColumnOptions}
+                          value={formData.desktopColumns.toString()}
+                          onChange={(value) => setFormData({ ...formData, desktopColumns: parseInt(value) })}
+                          helpText="Number of columns on desktop"
+                        />
+                      </FormLayout.Group>
+                    </FormLayout>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Grid-specific settings for edit page */}
+              {formData.layoutType === 'grid' && (
+                <Box>
+                  <Divider />
+                  <Box paddingBlockStart="400">
+                    <BlockStack gap="400">
+                      <Text variant="headingSm" as="h4" fontWeight="semibold">
+                        Grid layout settings
+                      </Text>
+                      <FormLayout>
+                        <FormLayout.Group>
+                          <Checkbox
+                            label="Enable quick add button"
+                            checked={formData.gridSettings?.enableQuickAdd || false}
+                            onChange={(checked) => setFormData({
+                              ...formData,
+                              gridSettings: { ...formData.gridSettings, enableQuickAdd: checked }
+                            })}
+                            helpText="Show 'Add to bundle' button on each product"
+                          />
+                          <Select
+                            label="Image position"
+                            options={[
+                              { label: "Top", value: "top" },
+                              { label: "Left", value: "left" },
+                              { label: "Right", value: "right" },
+                            ]}
+                            value={formData.gridSettings?.imagePosition || "top"}
+                            onChange={(value) => setFormData({
+                              ...formData,
+                              gridSettings: { ...formData.gridSettings, imagePosition: value as any }
+                            })}
+                          />
+                        </FormLayout.Group>
+                      </FormLayout>
+                    </BlockStack>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Slider-specific settings for edit page */}
+              {formData.layoutType === 'slider' && (
+                <Box>
+                  <Divider />
+                  <Box paddingBlockStart="400">
+                    <FormLayout>
+                      <Text variant="headingSm" as="h4" fontWeight="semibold">
+                        Slider settings
+                      </Text>
+                      <FormLayout.Group>
+                        <TextField
+                          label="Slides to scroll"
+                          type="number"
+                          value={formData.sliderSettings?.slidesToScroll?.toString() || "1"}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            sliderSettings: { ...formData.sliderSettings, slidesToScroll: parseInt(value) || 1 }
+                          })}
+                          min={1}
+                          helpText="Number of slides to scroll at a time"
+                          autoComplete="off"
+                        />
+                        <TextField
+                          label="Autoplay speed (ms)"
+                          type="number"
+                          value={formData.sliderSettings?.autoplaySpeed?.toString() || "5000"}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            sliderSettings: { ...formData.sliderSettings, autoplaySpeed: parseInt(value) || 5000 }
+                          })}
+                          min={1000}
+                          helpText="Time between automatic slides"
+                          autoComplete="off"
+                        />
+                      </FormLayout.Group>
+                      <FormLayout>
+                        <Checkbox
+                          label="Enable infinite loop"
+                          checked={formData.sliderSettings?.infiniteLoop !== false}
+                          onChange={(checked) => setFormData({
+                            ...formData,
+                            sliderSettings: { ...formData.sliderSettings, infiniteLoop: checked }
+                          })}
+                        />
+                        <Checkbox
+                          label="Enable autoplay"
+                          checked={formData.sliderSettings?.autoplay || false}
+                          onChange={(checked) => setFormData({
+                            ...formData,
+                            sliderSettings: { ...formData.sliderSettings, autoplay: checked }
+                          })}
+                        />
+                        <Checkbox
+                          label="Show thumbnails"
+                          checked={formData.sliderSettings?.enableThumbnails || false}
+                          onChange={(checked) => setFormData({
+                            ...formData,
+                            sliderSettings: { ...formData.sliderSettings, enableThumbnails: checked }
+                          })}
+                        />
+                      </FormLayout>
+                    </FormLayout>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Modal-specific settings for edit page */}
+              {formData.layoutType === 'modal' && (
+                <Box>
+                  <Divider />
+                  <Box paddingBlockStart="400">
+                    <FormLayout>
+                      <Text variant="headingSm" as="h4" fontWeight="semibold">
+                        Modal settings
+                      </Text>
+                      <FormLayout.Group>
+                        <Select
+                          label="Trigger type"
+                          options={[
+                            { label: "Button", value: "button" },
+                            { label: "Auto open", value: "auto" },
+                            { label: "Exit intent", value: "exit" },
+                          ]}
+                          value={formData.modalSettings?.triggerType || "button"}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            modalSettings: { ...formData.modalSettings, triggerType: value as any }
+                          })}
+                        />
+                        <Select
+                          label="Modal behavior"
+                          options={[
+                            { label: "Close on overlay click", value: "closeOnOverlay" },
+                            { label: "Stay open", value: "stayOpen" },
+                          ]}
+                          value={formData.modalSettings?.modalBehavior || "closeOnOverlay"}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            modalSettings: { ...formData.modalSettings, modalBehavior: value as any }
+                          })}
+                        />
+                      </FormLayout.Group>
+                      <FormLayout>
+                        <Checkbox
+                          label="Block page scroll when open"
+                          checked={formData.modalSettings?.blockPageScroll !== false}
+                          onChange={(checked) => setFormData({
+                            ...formData,
+                            modalSettings: { ...formData.modalSettings, blockPageScroll: checked }
+                          })}
+                        />
+                        <RadioButton
+                          label="Fixed size (800px × 600px)"
+                          checked={formData.modalSettings?.modalSize === "fixed"}
+                          id="modal-size-fixed"
+                          onChange={() => setFormData({
+                            ...formData,
+                            modalSettings: { ...formData.modalSettings, modalSize: "fixed" }
+                          })}
+                        />
+                        <RadioButton
+                          label="Responsive (90% viewport)"
+                          checked={formData.modalSettings?.modalSize === "responsive"}
+                          id="modal-size-responsive"
+                          onChange={() => setFormData({
+                            ...formData,
+                            modalSettings: { ...formData.modalSettings, modalSize: "responsive" }
+                          })}
+                        />
+                      </FormLayout>
+                    </FormLayout>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Selection-specific settings for edit page */}
+              {formData.layoutType === 'selection' && (
+                <Box>
+                  <Divider />
+                  <Box paddingBlockStart="400">
+                    <BlockStack gap="400">
+                      <Text variant="headingSm" as="h4" fontWeight="semibold">
+                        Selection box settings
+                      </Text>
+                      <FormLayout>
+                        <FormLayout.Group>
+                          <Select
+                            label="Selection mode"
+                            options={[
+                              { label: "Click to select", value: "click" },
+                              { label: "Drag and drop", value: "drag" },
+                              { label: "Both", value: "both" },
+                            ]}
+                            value={formData.selectionSettings?.selectionMode || "both"}
+                            onChange={(value) => setFormData({
+                              ...formData,
+                              selectionSettings: { ...formData.selectionSettings, selectionMode: value as any }
+                            })}
+                          />
+                          <Select
+                            label="Empty slot behavior"
+                            options={[
+                              { label: "Show placeholder", value: "show" },
+                              { label: "Hide empty slots", value: "hide" },
+                              { label: "Collapse slots", value: "collapse" },
+                            ]}
+                            value={formData.selectionSettings?.emptySlotBehavior || "show"}
+                            onChange={(value) => setFormData({
+                              ...formData,
+                              selectionSettings: { ...formData.selectionSettings, emptySlotBehavior: value as any }
+                            })}
+                          />
+                        </FormLayout.Group>
+                        <Select
+                          label="Progress tracking"
+                          options={[
+                            { label: "Progress bar", value: "bar" },
+                            { label: "Step counter", value: "counter" },
+                            { label: "Both", value: "both" },
+                            { label: "None", value: "none" },
+                          ]}
+                          value={formData.selectionSettings?.progressTracking || "counter"}
+                          onChange={(value) => setFormData({
+                            ...formData,
+                            selectionSettings: { ...formData.selectionSettings, progressTracking: value as any }
+                          })}
+                          helpText="How to show bundle completion progress"
+                        />
+                      </FormLayout>
+                    </BlockStack>
+                  </Box>
+                </Box>
+              )}
+            </BlockStack>
+          </Card>
+        ) : (
+          // Create page - Original visual layout chooser
+          <Card>
+            <BlockStack gap="400">
+              <Box>
+                <BlockStack gap="200">
+                  <Text variant="headingMd" as="h2">
+                    Layout Configuration
+                  </Text>
+                  <Text variant="bodySm" tone="subdued" as="p">
+                    Choose how your bundle will be displayed to customers
+                  </Text>
+                </BlockStack>
+              </Box>
+              
+              {/* Visual Layout Chooser */}
+              <Box width="100%">
+              <Grid columns={{ xs: 2, sm: 2, md: 4, lg: 4 }} gap="400">
                 {/* Grid Layout Card */}
                 <Box>
                   <div
@@ -1287,22 +1747,28 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
                 </Box>
               </Box>
             )}
-          </BlockStack>
-        </Card>
+                      </BlockStack>
+                    </Card>
+                  )}
+                </BlockStack>
+              </Box>
+            )}
 
-        {/* Bundle Steps */}
-        <Card>
-          <BlockStack gap="400">
-            <Box>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h2">
-                  Bundle Steps
-                </Text>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  Define the steps customers will follow to build their bundle
-                </Text>
-              </BlockStack>
-            </Box>
+            {/* Bundle Steps Tab */}
+            {selectedTab === 2 && (
+              <Box paddingBlockStart="400">
+                <Card>
+                  <BlockStack gap="400">
+                    <Box>
+                      <BlockStack gap="200">
+                        <Text variant="headingMd" as="h2">
+                          Bundle Steps
+                        </Text>
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          Define the steps customers will follow to build their bundle
+                        </Text>
+                      </BlockStack>
+                    </Box>
 
             {errors.steps && (
               <InlineError message={errors.steps} fieldID="steps-error" />
@@ -1811,8 +2277,12 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false }:
                 </Box>
               </InlineStack>
             </Box>
-          </BlockStack>
-        </Card>
+                  </BlockStack>
+                </Card>
+              </Box>
+            )}
+          </Tabs>
+        </Box>
 
         {/* Form Actions */}
         <Box paddingBlockStart="400" paddingBlockEnd="800">

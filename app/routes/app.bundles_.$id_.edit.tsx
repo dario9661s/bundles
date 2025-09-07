@@ -4,6 +4,7 @@ import { useLoaderData, useSubmit, useNavigation, useNavigate, useActionData } f
 import { Page, Layout, Card, EmptyState, Banner, Modal, FormLayout, TextField, Box, InlineError, Badge, Select } from "@shopify/polaris";
 import { authenticate } from "~/shopify.server";
 import { BundleForm } from "~/components/BundleForm";
+import { BundleSummary } from "~/components/BundleSummary";
 import { getBundle, updateBundle, deleteBundle, duplicateBundle } from "~/services/bundle-metaobject.server";
 import type { Bundle, UpdateBundleRequest } from "~/types/bundle";
 import { useCallback, useState, useEffect } from "react";
@@ -125,6 +126,23 @@ export default function EditBundlePage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [currentStatus, setCurrentStatus] = useState(bundle.status);
   const [isStatusChanging, setIsStatusChanging] = useState(false);
+  const [formState, setFormState] = useState<{
+    title: string;
+    status: Bundle['status'];
+    layoutType: Bundle['layoutType'];
+    discountType: Bundle['discountType'];
+    discountValue: number;
+    steps: any[];
+    isValid: boolean;
+  }>({
+    title: bundle.title,
+    status: bundle.status,
+    layoutType: bundle.layoutType,
+    discountType: bundle.discountType,
+    discountValue: bundle.discountValue,
+    steps: bundle.steps || [],
+    isValid: true,
+  });
   
   // Update current status when bundle changes (e.g., after navigation)
   useEffect(() => {
@@ -257,12 +275,37 @@ export default function EditBundlePage() {
             </Layout.Section>
           )}
           
-          <Layout.Section>
+          <Layout.Section variant="twoThirds">
             <BundleForm
               bundle={bundle}
               onSubmit={handleSubmit}
               onCancel={handleCancel}
               isSubmitting={isSubmitting}
+              onFormStateChange={setFormState}
+            />
+          </Layout.Section>
+          
+          <Layout.Section variant="oneThird">
+            <BundleSummary
+              title={formState.title}
+              status={formState.status}
+              layoutType={formState.layoutType}
+              discountType={formState.discountType}
+              discountValue={formState.discountValue}
+              steps={formState.steps}
+              isValid={formState.isValid}
+              isEdit={true}
+              isSubmitting={isSubmitting}
+              onSubmit={() => {
+                // Find and click the actual form submit button
+                const form = document.querySelector('form');
+                if (form) {
+                  const submitButton = form.querySelector('button[type="submit"]');
+                  if (submitButton) {
+                    (submitButton as HTMLButtonElement).click();
+                  }
+                }
+              }}
             />
           </Layout.Section>
         </Layout>

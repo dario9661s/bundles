@@ -1,13 +1,31 @@
 import { Page, Layout, Card, BlockStack, Text, Banner } from "@shopify/polaris";
 import { useNavigate } from "@remix-run/react";
 import { BundleForm } from "~/components/BundleForm";
-import type { CreateBundleRequest } from "~/types/bundle";
+import { BundleSummary } from "~/components/BundleSummary";
+import type { CreateBundleRequest, Bundle } from "~/types/bundle";
 import { useCallback, useState } from "react";
 
 export default function CreateBundlePage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formState, setFormState] = useState<{
+    title: string;
+    status: Bundle['status'];
+    layoutType: Bundle['layoutType'];
+    discountType: Bundle['discountType'];
+    discountValue: number;
+    steps: any[];
+    isValid: boolean;
+  }>({
+    title: '',
+    status: 'draft',
+    layoutType: 'grid',
+    discountType: 'percentage',
+    discountValue: 0,
+    steps: [],
+    isValid: false,
+  });
 
   const handleSubmit = useCallback(async (data: CreateBundleRequest) => {
     console.log("Form submitted with data:", data);
@@ -49,7 +67,7 @@ export default function CreateBundlePage() {
       title="Create New Bundle"
     >
       <Layout>
-        <Layout.Section>
+        <Layout.Section variant="twoThirds">
           <BlockStack gap="400">
             {error && (
               <Banner status="critical" onDismiss={() => setError(null)}>
@@ -60,8 +78,33 @@ export default function CreateBundlePage() {
               onSubmit={handleSubmit}
               onCancel={handleCancel}
               isSubmitting={isSubmitting}
+              onFormStateChange={setFormState}
             />
           </BlockStack>
+        </Layout.Section>
+        
+        <Layout.Section variant="oneThird">
+          <BundleSummary
+            title={formState.title}
+            status={formState.status}
+            layoutType={formState.layoutType}
+            discountType={formState.discountType}
+            discountValue={formState.discountValue}
+            steps={formState.steps}
+            isValid={formState.isValid}
+            isEdit={false}
+            isSubmitting={isSubmitting}
+            onSubmit={() => {
+              // Find and click the actual form submit button
+              const form = document.querySelector('form');
+              if (form) {
+                const submitButton = form.querySelector('button[type="submit"]');
+                if (submitButton) {
+                  (submitButton as HTMLButtonElement).click();
+                }
+              }
+            }}
+          />
         </Layout.Section>
       </Layout>
     </Page>
