@@ -62,18 +62,15 @@ Building bundle app like Biscuits - focusing on ~40 core features that matter.
 ## 📋 Phase 3: Theme Integration
 
 ### 3.1 App Block Development ⏱️ 3-4 hours
-- [ ] Create bundle display block
-- [ ] Card templates
-- [ ] Grid/slider/modal/selection layouts
-- [x] Accordion layout (implemented as visual option)
-- [ ] Mobile responsive settings
+- [ ] Create bundle display app block for theme integration
+- [ ] Build grid/slider/modal/selection/stepper layouts in theme extension
+- [x] Check which slider library to use - **DECIDED: Embla Carousel (7.67KB gzipped, no dependencies)**
+- [ ] Decide which settings go in theme customizer (style settings only) vs app dashboard settings
+- [ ] Determine best strategy for bundling logic in checkout and adding to cart for each layout type - consider different blocks/sections structure
 
 ### 3.2 Customer Experience ⏱️ 2-3 hours
-- [ ] Visual product selection (no typing!)
-- [ ] Step-by-step flow
-- [ ] Real-time price calculation
-- [ ] Add bundle to cart
-- [ ] Show savings amount
+- [ ] Add real-time price calculation
+- [ ] Add combination image functionality - users upload images in app dashboard for each combination of products (2, 3, or more) and it displays in store when those specific products are selected together
 
 ---
 

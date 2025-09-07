@@ -168,20 +168,20 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
   // Fetch product details when products are selected
   const fetchProductDetails = useCallback(async (productIds: string[]) => {
     if (productIds.length === 0) return;
-    
+
     console.log('Fetching details for products:', productIds);
-    
+
     try {
       const response = await fetch(`/api/products/by-ids?ids=${productIds.join(',')}`);
-      
+
       if (!response.ok) {
         console.error('Failed to fetch products:', response.status, response.statusText);
         return;
       }
-      
+
       const data = await response.json();
       console.log('Received product data:', data);
-      
+
       if (data.products) {
         const details: Record<string, any> = {};
         data.products.forEach((product: any) => {
@@ -203,10 +203,10 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
   useEffect(() => {
     const allProductIds = steps.flatMap(step => step.products.map(p => p.id));
     const uniqueProductIds = [...new Set(allProductIds)]; // Remove duplicates
-    
+
     // Check if we need to fetch any new products
     const newProductIds = uniqueProductIds.filter(id => !productDetails[id]);
-    
+
     if (newProductIds.length > 0) {
       console.log('Fetching product details for:', newProductIds);
       fetchProductDetails(newProductIds);
@@ -231,7 +231,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
     // Only validate steps that have been modified (have a title or products)
     steps.forEach((step, index) => {
       const isStepTouched = step.title.trim() || step.products.length > 0;
-      
+
       if (isStepTouched) {
         if (!step.title.trim()) {
           newErrors[`step_${index}_title`] = "Step title is required";
@@ -266,7 +266,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
     } else {
       setErrors(newErrors);
     }
-    
+
     return Object.keys(newErrors).length === 0;
   }, [formData, steps, touched]);
 
@@ -294,7 +294,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
     // Only validate steps that have been modified (have a title or products)
     steps.forEach((step, index) => {
       const isStepTouched = step.title.trim() || step.products.length > 0;
-      
+
       if (isStepTouched) {
         if (!step.title.trim()) {
           allErrors[`step_${index}_title`] = "Step title is required";
@@ -372,7 +372,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
       }
     });
     setTouched(allTouched);
-    
+
     if (!validateForm(true)) {
       console.log("Validation failed");
       return;
@@ -462,7 +462,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
     if (steps.length > 1) {
       const stepToRemove = steps[index];
       setSteps(steps.filter((_, i) => i !== index));
-      
+
       // Clean up tab state for removed step
       const newTabState = { ...activeTabPerStep };
       delete newTabState[stepToRemove.id];
@@ -472,20 +472,20 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
 
   const reorderProducts = (stepIndex: number, oldIndex: number, newIndex: number) => {
     console.log(`🎯 Reordering products in step ${stepIndex}: moving from position ${oldIndex + 1} to position ${newIndex + 1}`);
-    
+
     const step = steps[stepIndex];
     const newProducts = [...step.products];
     const [movedProduct] = newProducts.splice(oldIndex, 1);
     newProducts.splice(newIndex, 0, movedProduct);
-    
+
     // Update positions
     const reorderedProducts = newProducts.map((product, idx) => ({
       ...product,
       position: idx + 1
     }));
-    
+
     console.log('📦 New product order:', reorderedProducts.map(p => `${p.id} (pos: ${p.position})`));
-    
+
     updateStep(stepIndex, { products: reorderedProducts });
   };
 
@@ -513,7 +513,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
     { label: "Grid", value: "grid" },
     { label: "Slider", value: "slider" },
     { label: "Modal", value: "modal" },
-    { label: "Selection Box", value: "selection" },
+    { label: "Selection", value: "selection" },
   ];
 
   const mobileColumnOptions = [
@@ -544,22 +544,22 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
     if (!formData.title.trim()) {
       return { field: 'title', tab: null };
     }
-    
+
     // Check discount value
     const discountNum = parseFloat(formData.discountValue);
     if (!formData.discountValue || isNaN(discountNum) || discountNum <= 0) {
       return { field: 'discountValue', tab: 0 }; // Pricing tab
     }
-    
+
     // Check if we have at least one step with products
-    const hasValidStep = steps.some(step => 
+    const hasValidStep = steps.some(step =>
       step.title.trim() && step.products.length > 0
     );
-    
+
     if (!hasValidStep) {
       return { field: 'steps', tab: 2 }; // Bundle Steps tab
     }
-    
+
     // All required fields are filled
     return { field: null, tab: null };
   }, [formData.title, formData.discountValue, steps]);
@@ -736,17 +736,16 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                   </Text>
                 </BlockStack>
               </Box>
-              
+
               {/* Radio button layout selector for edit page */}
               <Box width="100%">
               <BlockStack gap="400">
                 {/* Grid Layout Option */}
-                <Box>
-                  <RadioButton
+                <RadioButton
                     label={
                       <InlineStack gap="300" blockAlign="center">
-                        <Box width="40px" height="40px" style={{ flexShrink: 0 }}>
-                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                          <Box width="100px" height="40px" style={{ flexShrink: 0 }}>
+                            <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             <rect x="15" y="15" width="32" height="32" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.2"/>
                             <rect x="53" y="15" width="32" height="32" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.2"/>
                             <rect x="15" y="53" width="32" height="32" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.2"/>
@@ -770,16 +769,14 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     checked={formData.layoutType === 'grid'}
                     id="layout-grid-edit"
                     onChange={() => setFormData(prev => ({ ...prev, layoutType: 'grid' }))}
-                  />
-                </Box>
+                />
 
                 {/* Slider Layout Option */}
-                <Box>
-                  <RadioButton
+                <RadioButton
                     label={
                       <InlineStack gap="300" blockAlign="center">
-                        <Box width="40px" height="40px" style={{ flexShrink: 0 }}>
-                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                          <Box width="100px" height="40px" style={{ flexShrink: 0 }}>
+                            <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             <path d="M20 50L26 44L26 56L20 50Z" fill="#8C9196" fillOpacity="0.5"/>
                             <path d="M80 50L74 56L74 44L80 50Z" fill="#8C9196" fillOpacity="0.5"/>
                             <rect x="33" y="25" width="34" height="42" rx="3" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
@@ -802,16 +799,14 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     checked={formData.layoutType === 'slider'}
                     id="layout-slider-edit"
                     onChange={() => setFormData(prev => ({ ...prev, layoutType: 'slider' }))}
-                  />
-                </Box>
+                />
 
                 {/* Modal Layout Option */}
-                <Box>
-                  <RadioButton
+                <RadioButton
                     label={
                       <InlineStack gap="300" blockAlign="center">
-                        <Box width="40px" height="40px" style={{ flexShrink: 0 }}>
-                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                          <Box width="100px" height="40px" style={{ flexShrink: 0 }}>
+                            <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             <rect x="20" y="15" width="60" height="70" rx="3" fill="#E3E5E7" fillOpacity="0.6" stroke="#8C9196" strokeOpacity="0.3" strokeWidth="1.2"/>
                             <rect x="28" y="23" width="44" height="52" rx="3" fill="#FAFBFB" stroke="#8C9196" strokeWidth="1.5"/>
                             <line x1="28" y1="36" x2="72" y2="36" stroke="#8C9196" strokeWidth="1.2" strokeOpacity="0.5"/>
@@ -831,16 +826,14 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     checked={formData.layoutType === 'modal'}
                     id="layout-modal-edit"
                     onChange={() => setFormData(prev => ({ ...prev, layoutType: 'modal' }))}
-                  />
-                </Box>
+                />
 
-                {/* Selection Box Layout Option */}
-                <Box>
-                  <RadioButton
+                {/* Selection Layout Option */}
+                <RadioButton
                     label={
                       <InlineStack gap="300" blockAlign="center">
-                        <Box width="40px" height="40px" style={{ flexShrink: 0 }}>
-                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                          <Box width="100px" height="40px" style={{ flexShrink: 0 }}>
+                            <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             <rect x="20" y="10" width="60" height="35" rx="4" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1.5" strokeDasharray="3 3"/>
                             <text x="50" y="30" textAnchor="middle" fill="#8C9196" fontSize="12" fontFamily="Arial">Drop Here</text>
                             <rect x="35" y="50" width="14" height="14" rx="3" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
@@ -859,7 +852,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                           </svg>
                         </Box>
                         <Box>
-                          <Text variant="bodyLg" fontWeight="semibold">Selection Box</Text>
+                          <Text variant="bodyLg" fontWeight="semibold">Selection</Text>
                           <Text variant="bodySm" tone="subdued">Display products with drag-and-drop selection</Text>
                         </Box>
                       </InlineStack>
@@ -867,43 +860,41 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     checked={formData.layoutType === 'selection'}
                     id="layout-selection-edit"
                     onChange={() => setFormData(prev => ({ ...prev, layoutType: 'selection' }))}
-                  />
-                </Box>
+                />
 
                 {/* Stepper Layout Option */}
-                <Box>
-                  <RadioButton
+                <RadioButton
                     label={
                       <InlineStack gap="300" blockAlign="center">
-                        <Box width="40px" height="40px" style={{ flexShrink: 0 }}>
-                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                          <Box width="100px" height="40px" style={{ flexShrink: 0 }}>
+                            <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             {/* Progress bar at top */}
                             <rect x="12" y="12" width="76" height="3" rx="1.5" fill="#8C9196" fillOpacity="0.2"/>
                             <rect x="12" y="12" width="30" height="3" rx="1.5" fill="#00AA5E" fillOpacity="0.8"/>
-                            
+
                             {/* Step indicators */}
                             <circle cx="20" cy="13.5" r="6" fill="#00AA5E" stroke="#FFFFFF" strokeWidth="1.5"/>
                             <text x="20" y="17" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold" fontFamily="Arial">1</text>
-                            
+
                             <circle cx="50" cy="13.5" r="6" fill="#8C9196" fillOpacity="0.8" stroke="#FFFFFF" strokeWidth="1.5"/>
                             <text x="50" y="17" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold" fontFamily="Arial">2</text>
-                            
+
                             <circle cx="80" cy="13.5" r="6" fill="#8C9196" fillOpacity="0.3" stroke="#FFFFFF" strokeWidth="1.5"/>
                             <text x="80" y="17" textAnchor="middle" fill="#8C9196" fontSize="8" fontWeight="bold" fontFamily="Arial">3</text>
-                            
+
                             {/* Current step content */}
                             <rect x="18" y="28" width="64" height="32" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1"/>
                             <text x="50" y="36" textAnchor="middle" fill="#8C9196" fontSize="7" fontFamily="Arial">Step 1: Choose Base</text>
-                            
+
                             {/* Products in current step */}
                             <rect x="26" y="42" width="14" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="43" y="42" width="14" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="60" y="42" width="14" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
-                            
+
                             {/* Navigation buttons */}
                             <rect x="23" y="65" width="25" height="15" rx="2.5" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
                             <text x="35.5" y="74" textAnchor="middle" fill="#8C9196" fontSize="7" fontFamily="Arial">Back</text>
-                            
+
                             <rect x="52" y="65" width="25" height="15" rx="2.5" fill="#00AA5E" fillOpacity="0.8"/>
                             <text x="64.5" y="74" textAnchor="middle" fill="#FFFFFF" fontSize="7" fontWeight="bold" fontFamily="Arial">Next</text>
                           </svg>
@@ -917,11 +908,10 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     checked={formData.layoutType === 'stepper'}
                     id="layout-stepper-edit"
                     onChange={() => setFormData(prev => ({ ...prev, layoutType: 'stepper' }))}
-                  />
-                </Box>
+                />
               </BlockStack>
               </Box>
-              
+
               {/* Column settings for edit page */}
               {['grid', 'slider', 'stepper'].includes(formData.layoutType) && (
                 <Box>
@@ -1185,7 +1175,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                   </Box>
                 </Box>
               )}
-              
+
               {/* Stepper-specific settings for edit page */}
               {formData.layoutType === 'stepper' && (
                 <Box>
@@ -1269,7 +1259,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                   </Text>
                 </BlockStack>
               </Box>
-              
+
               {/* Visual Layout Chooser */}
               <Box width="100%">
               <Grid columns={{ xs: 3, sm: 4, md: 5, lg: 5 }} gap="200">
@@ -1277,7 +1267,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                 <Box>
                   <div
                     onClick={() => setFormData({ ...formData, layoutType: 'grid' })}
-                    style={{ 
+                    style={{
                       cursor: 'pointer',
                       borderRadius: '8px',
                       overflow: 'hidden'
@@ -1286,7 +1276,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Card
                       background={formData.layoutType === 'grid' ? 'bg-surface-selected' : 'bg-surface'}
                       padding="300"
-                      style={{ 
+                      style={{
                         border: formData.layoutType === 'grid' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
                         transition: 'all 0.15s ease',
                         height: '100%'
@@ -1301,13 +1291,13 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                             <rect x="53" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
                             <rect x="10" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
                             <rect x="53" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
-                            
+
                             {/* Placeholder content in cards */}
                             <rect x="16" y="16" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="59" y="16" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="16" y="59" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="59" y="59" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
-                            
+
                             {/* Text lines */}
                             <rect x="16" y="38" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
                             <rect x="59" y="38" width="25" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
@@ -1332,7 +1322,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                 <Box>
                   <div
                     onClick={() => setFormData({ ...formData, layoutType: 'slider' })}
-                    style={{ 
+                    style={{
                       cursor: 'pointer',
                       borderRadius: '8px',
                       overflow: 'hidden'
@@ -1341,7 +1331,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Card
                       background={formData.layoutType === 'slider' ? 'bg-surface-selected' : 'bg-surface'}
                       padding="300"
-                      style={{ 
+                      style={{
                         border: formData.layoutType === 'slider' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
                         transition: 'all 0.15s ease',
                         height: '100%'
@@ -1353,17 +1343,17 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                             {/* Navigation arrows */}
                             <path d="M15 50L24 41L24 59L15 50Z" fill="#8C9196" fillOpacity="0.5"/>
                             <path d="M85 50L76 59L76 41L85 50Z" fill="#8C9196" fillOpacity="0.5"/>
-                            
+
                             {/* Center card (active) */}
                             <rect x="30" y="20" width="40" height="50" rx="4" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="2"/>
                             <rect x="37" y="28" width="26" height="26" rx="2" fill="#8C9196" fillOpacity="0.4"/>
                             <rect x="37" y="58" width="26" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
                             <rect x="37" y="63" width="18" height="2" rx="1" fill="#8C9196" fillOpacity="0.4"/>
-                            
+
                             {/* Side cards (partially visible) */}
                             <rect x="12" y="25" width="15" height="40" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.3"/>
                             <rect x="73" y="25" width="15" height="40" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.3"/>
-                            
+
                             {/* Dots indicator */}
                             <circle cx="40" cy="82" r="2.5" fill="#8C9196" fillOpacity="0.3"/>
                             <circle cx="50" cy="82" r="3" fill="#8C9196" fillOpacity="0.8"/>
@@ -1388,7 +1378,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                 <Box>
                   <div
                     onClick={() => setFormData({ ...formData, layoutType: 'modal' })}
-                    style={{ 
+                    style={{
                       cursor: 'pointer',
                       borderRadius: '8px',
                       overflow: 'hidden'
@@ -1397,7 +1387,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Card
                       background={formData.layoutType === 'modal' ? 'bg-surface-selected' : 'bg-surface'}
                       padding="300"
-                      style={{ 
+                      style={{
                         border: formData.layoutType === 'modal' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
                         transition: 'all 0.15s ease',
                         height: '100%'
@@ -1408,29 +1398,29 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                           <svg width="60" height="60" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
                             {/* Background overlay */}
                             <rect x="0" y="0" width="100" height="100" fill="#000000" fillOpacity="0.1" rx="4"/>
-                            
+
                             {/* Modal window sliding from right */}
                             <rect x="35" y="15" width="60" height="70" rx="4" fill="#FFFFFF" stroke="#8C9196" strokeWidth="2"/>
-                            
+
                             {/* Modal header */}
                             <rect x="35" y="15" width="60" height="12" rx="4 4 0 0" fill="#8C9196" fillOpacity="0.1"/>
                             <circle cx="88" cy="21" r="3" fill="#8C9196" fillOpacity="0.5"/>
-                            
+
                             {/* Modal content - steps */}
                             <rect x="42" y="32" width="46" height="8" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="42" y="43" width="46" height="8" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="42" y="54" width="46" height="8" rx="2" fill="#8C9196" fillOpacity="0.3"/>
-                            
+
                             {/* Products in modal */}
                             <rect x="42" y="66" width="10" height="10" rx="2" fill="#8C9196" fillOpacity="0.4"/>
                             <rect x="54" y="66" width="10" height="10" rx="2" fill="#8C9196" fillOpacity="0.4"/>
                             <rect x="66" y="66" width="10" height="10" rx="2" fill="#8C9196" fillOpacity="0.4"/>
                             <rect x="78" y="66" width="10" height="10" rx="2" fill="#8C9196" fillOpacity="0.4"/>
-                            
+
                             {/* Main page content (partially visible) */}
                             <rect x="5" y="20" width="25" height="30" rx="3" fill="#8C9196" fillOpacity="0.1"/>
                             <rect x="5" y="55" width="25" height="30" rx="3" fill="#8C9196" fillOpacity="0.1"/>
-                            
+
                             {/* Arrow indicating slide direction */}
                             <path d="M30 50L25 45L25 55L30 50Z" fill="#8C9196" fillOpacity="0.6"/>
                           </svg>
@@ -1448,11 +1438,11 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                   </div>
                 </Box>
 
-                {/* Selection Box Layout Card */}
+                {/* Selection Layout Card */}
                 <Box>
                   <div
                     onClick={() => setFormData({ ...formData, layoutType: 'selection' })}
-                    style={{ 
+                    style={{
                       cursor: 'pointer',
                       borderRadius: '8px',
                       overflow: 'hidden'
@@ -1461,7 +1451,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Card
                       background={formData.layoutType === 'selection' ? 'bg-surface-selected' : 'bg-surface'}
                       padding="300"
-                      style={{ 
+                      style={{
                         border: formData.layoutType === 'selection' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
                         transition: 'all 0.15s ease',
                         height: '100%'
@@ -1472,34 +1462,34 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                           <svg width="60" height="60" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
                             {/* Empty slots container */}
                             <rect x="10" y="10" width="80" height="55" rx="4" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1.5" strokeDasharray="4 2"/>
-                            
+
                             {/* Empty slots */}
                             <rect x="15" y="15" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#8C9196" strokeWidth="1" strokeDasharray="3 2"/>
                             <rect x="39" y="15" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#8C9196" strokeWidth="1" strokeDasharray="3 2"/>
                             <rect x="63" y="15" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#8C9196" strokeWidth="1" strokeDasharray="3 2"/>
                             <rect x="15" y="39" width="22" height="22" rx="3" fill="#FFFFFF" stroke="#8C9196" strokeWidth="1" strokeDasharray="3 2"/>
-                            
+
                             {/* Filled slots */}
                             <rect x="39" y="39" width="22" height="22" rx="3" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
                             <rect x="63" y="39" width="22" height="22" rx="3" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
-                            
+
                             {/* Plus signs in empty slots */}
                             <path d="M26 20L26 32M20 26L32 26" stroke="#8C9196" strokeWidth="2" strokeOpacity="0.5" strokeLinecap="round"/>
                             <path d="M50 20L50 32M44 26L56 26" stroke="#8C9196" strokeWidth="2" strokeOpacity="0.5" strokeLinecap="round"/>
                             <path d="M74 20L74 32M68 26L80 26" stroke="#8C9196" strokeWidth="2" strokeOpacity="0.5" strokeLinecap="round"/>
                             <path d="M26 44L26 56M20 50L32 50" stroke="#8C9196" strokeWidth="2" strokeOpacity="0.5" strokeLinecap="round"/>
-                            
+
                             {/* Content in filled slots */}
                             <rect x="43" y="43" width="14" height="10" rx="1" fill="#8C9196" fillOpacity="0.5"/>
                             <rect x="43" y="56" width="10" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
                             <rect x="67" y="43" width="14" height="10" rx="1" fill="#8C9196" fillOpacity="0.5"/>
                             <rect x="67" y="56" width="10" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
-                            
+
                             {/* Available products below */}
                             <rect x="15" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
                             <rect x="35" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
                             <rect x="55" y="72" width="17" height="17" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
-                            
+
                             {/* Arrow showing movement */}
                             <path d="M43 72L43 66L47 66L47 72" stroke="#8C9196" strokeWidth="1.5" strokeOpacity="0.6" fill="none" markerEnd="url(#arrowhead)"/>
                             <defs>
@@ -1510,7 +1500,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                           </svg>
                         </Box>
                         <Text variant="bodyMd" fontWeight="medium" alignment="center">
-                          Selection Box
+                          Selection
                         </Text>
                         {formData.layoutType === 'selection' && (
                           <Box position="absolute" insetBlockStart="200" insetInlineEnd="200">
@@ -1526,7 +1516,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                 <Box>
                   <div
                     onClick={() => setFormData({ ...formData, layoutType: 'stepper' })}
-                    style={{ 
+                    style={{
                       cursor: 'pointer',
                       borderRadius: '8px',
                       overflow: 'hidden'
@@ -1535,7 +1525,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Card
                       background={formData.layoutType === 'stepper' ? 'bg-surface-selected' : 'bg-surface'}
                       padding="300"
-                      style={{ 
+                      style={{
                         border: formData.layoutType === 'stepper' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
                         transition: 'all 0.15s ease',
                         height: '100%'
@@ -1547,30 +1537,30 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                             {/* Progress bar at top */}
                             <rect x="10" y="10" width="80" height="4" rx="2" fill="#8C9196" fillOpacity="0.2"/>
                             <rect x="10" y="10" width="30" height="4" rx="2" fill="#00AA5E" fillOpacity="0.8"/>
-                            
+
                             {/* Step indicators */}
                             <circle cx="20" cy="12" r="8" fill="#00AA5E" stroke="#FFFFFF" strokeWidth="2"/>
                             <text x="20" y="16" textAnchor="middle" fill="#FFFFFF" fontSize="10" fontWeight="bold" fontFamily="Arial">1</text>
-                            
+
                             <circle cx="50" cy="12" r="8" fill="#8C9196" fillOpacity="0.8" stroke="#FFFFFF" strokeWidth="2"/>
                             <text x="50" y="16" textAnchor="middle" fill="#FFFFFF" fontSize="10" fontWeight="bold" fontFamily="Arial">2</text>
-                            
+
                             <circle cx="80" cy="12" r="8" fill="#8C9196" fillOpacity="0.3" stroke="#FFFFFF" strokeWidth="2"/>
                             <text x="80" y="16" textAnchor="middle" fill="#8C9196" fontSize="10" fontWeight="bold" fontFamily="Arial">3</text>
-                            
+
                             {/* Current step content */}
                             <rect x="15" y="28" width="70" height="40" rx="4" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1"/>
                             <text x="50" y="38" textAnchor="middle" fill="#8C9196" fontSize="8" fontFamily="Arial">Step 1: Choose Base</text>
-                            
+
                             {/* Products in current step */}
                             <rect x="22" y="45" width="18" height="18" rx="3" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="42" y="45" width="18" height="18" rx="3" fill="#8C9196" fillOpacity="0.3"/>
                             <rect x="62" y="45" width="18" height="18" rx="3" fill="#8C9196" fillOpacity="0.3"/>
-                            
+
                             {/* Navigation buttons */}
                             <rect x="20" y="72" width="30" height="18" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
                             <text x="35" y="83" textAnchor="middle" fill="#8C9196" fontSize="8" fontFamily="Arial">Back</text>
-                            
+
                             <rect x="55" y="72" width="30" height="18" rx="3" fill="#00AA5E" fillOpacity="0.8"/>
                             <text x="70" y="83" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold" fontFamily="Arial">Next</text>
                           </svg>
@@ -1629,7 +1619,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Text variant="headingSm" as="h4" fontWeight="semibold">
                       Grid Settings
                     </Text>
-                    
+
                     <FormLayout>
                       <Text variant="bodyMd" fontWeight="medium">Products per row</Text>
                       <FormLayout.Group>
@@ -1771,7 +1761,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Text variant="headingSm" as="h4" fontWeight="semibold">
                       Slider Settings
                     </Text>
-                    
+
                     <FormLayout>
                       <Text variant="bodyMd" fontWeight="medium">Slides to show</Text>
                       <FormLayout.Group>
@@ -1942,7 +1932,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Text variant="headingSm" as="h4" fontWeight="semibold">
                       Modal Settings
                     </Text>
-                    
+
                     <FormLayout>
                       <Select
                         label="Trigger type"
@@ -2047,16 +2037,16 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
               </Box>
             )}
 
-            {/* Selection Box settings */}
+            {/* Selection settings */}
             {formData.layoutType === 'selection' && (
               <Box>
                 <Divider />
                 <Box paddingBlockStart="400">
                   <BlockStack gap="400">
                     <Text variant="headingSm" as="h4" fontWeight="semibold">
-                      Selection Box Settings
+                      Selection Settings
                     </Text>
-                    
+
                     <FormLayout>
                       <Select
                         label="Selection mode"
@@ -2153,7 +2143,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     <Text variant="headingSm" as="h4" fontWeight="semibold">
                       Stepper Settings
                     </Text>
-                    
+
                     <FormLayout>
                       <Checkbox
                         label="Show progress bar"
@@ -2439,7 +2429,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                 </FormLayout>
                               </BlockStack>
                             </Box>
-                            
+
                             <Divider />
 
                             <Box>
@@ -2456,11 +2446,11 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                     Select products
                                   </Button>
                                 </InlineStack>
-                                
+
                                 {errors[`step_${index}_products`] && (
                                   <InlineError message={errors[`step_${index}_products`]} fieldID={`step-${index}-products-error`} />
                                 )}
-                                
+
                                 {/* Product thumbnails */}
                                 {step.products.length > 0 && (
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -2469,10 +2459,10 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                         const isDragging = draggedProduct?.stepIndex === index && draggedProduct?.productIndex === productIndex;
                                         const isDragOver = dragOverProduct?.stepIndex === index && dragOverProduct?.productIndex === productIndex;
                                         const details = productDetails[product.id];
-                                        
+
                                         return (
-                                          <Box 
-                                            key={product.id} 
+                                          <Box
+                                            key={product.id}
                                             position="relative"
                                             width="150px"
                                             draggable
@@ -2513,7 +2503,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                               setDraggedProduct(null);
                                               setDragOverProduct(null);
                                             }}
-                                            style={{ 
+                                            style={{
                                               cursor: isDragging ? 'grabbing' : 'grab',
                                               transform: isDragOver ? 'scale(1.05)' : 'scale(1)',
                                               transition: 'all 0.2s ease',
@@ -2521,7 +2511,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                             }}
                                           >
                                             <Card>
-                                              <Box 
+                                              <Box
                                                 padding="200"
                                                 background={isDragOver ? "bg-surface-hover" : "bg"}
                                                 style={{ transition: 'background-color 0.2s ease' }}
@@ -2608,19 +2598,19 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                             <Text variant="bodyMd" tone="subdued">
                               Configure how products are displayed in this step
                             </Text>
-                            
+
                             {/* Visual Layout Chooser */}
                             <Box>
                               <Text variant="headingSm" as="h4" fontWeight="semibold">
                                 Choose display layout
                               </Text>
                               <Box paddingBlockStart="300">
-                                <InlineStack gap="400" align="start">
+                                <BlockStack gap="400" align="start">
                                   {/* Grid Layout Card */}
                                   <Box width="150px">
                                     <div
                                       onClick={() => updateStep(index, { displayType: 'grid' })}
-                                      style={{ 
+                                      style={{
                                         cursor: 'pointer',
                                         borderRadius: '8px',
                                         overflow: 'hidden'
@@ -2629,7 +2619,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                       <Card
                                         background={step.displayType === 'grid' ? 'bg-surface-selected' : 'bg-surface'}
                                         padding="300"
-                                        style={{ 
+                                        style={{
                                           border: step.displayType === 'grid' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
                                           transition: 'all 0.15s ease'
                                         }}
@@ -2643,13 +2633,13 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                               <rect x="42" y="8" width="30" height="30" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
                                               <rect x="8" y="42" width="30" height="30" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
                                               <rect x="42" y="42" width="30" height="30" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
-                                              
+
                                               {/* Placeholder content in cards */}
                                               <rect x="13" y="13" width="20" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                                               <rect x="47" y="13" width="20" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                                               <rect x="13" y="47" width="20" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                                               <rect x="47" y="47" width="20" height="14" rx="2" fill="#8C9196" fillOpacity="0.3"/>
-                                              
+
                                               {/* Text lines */}
                                               <rect x="13" y="30" width="20" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
                                               <rect x="47" y="30" width="20" height="2" rx="1" fill="#8C9196" fillOpacity="0.5"/>
@@ -2674,7 +2664,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                   <Box width="150px">
                                     <div
                                       onClick={() => updateStep(index, { displayType: 'carousel' })}
-                                      style={{ 
+                                      style={{
                                         cursor: 'pointer',
                                         borderRadius: '8px',
                                         overflow: 'hidden'
@@ -2683,7 +2673,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                       <Card
                                         background={step.displayType === 'carousel' ? 'bg-surface-selected' : 'bg-surface'}
                                         padding="300"
-                                        style={{ 
+                                        style={{
                                           border: step.displayType === 'carousel' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
                                           transition: 'all 0.15s ease'
                                         }}
@@ -2695,17 +2685,17 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                               {/* Navigation arrows */}
                                               <path d="M12 40L20 32L20 48L12 40Z" fill="#8C9196" fillOpacity="0.5"/>
                                               <path d="M68 40L60 48L60 32L68 40Z" fill="#8C9196" fillOpacity="0.5"/>
-                                              
+
                                               {/* Center card (active) */}
                                               <rect x="25" y="16" width="30" height="40" rx="4" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
                                               <rect x="30" y="22" width="20" height="20" rx="2" fill="#8C9196" fillOpacity="0.4"/>
                                               <rect x="30" y="46" width="20" height="2" rx="1" fill="#8C9196" fillOpacity="0.6"/>
                                               <rect x="30" y="50" width="14" height="2" rx="1" fill="#8C9196" fillOpacity="0.4"/>
-                                              
+
                                               {/* Side cards (partially visible) */}
                                               <rect x="10" y="20" width="12" height="32" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.3"/>
                                               <rect x="58" y="20" width="12" height="32" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.3"/>
-                                              
+
                                               {/* Dots indicator */}
                                               <circle cx="32" cy="66" r="2" fill="#8C9196" fillOpacity="0.3"/>
                                               <circle cx="40" cy="66" r="2.5" fill="#8C9196" fillOpacity="0.8"/>
@@ -2729,7 +2719,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                   <Box width="150px">
                                     <div
                                       onClick={() => updateStep(index, { displayType: 'list' })}
-                                      style={{ 
+                                      style={{
                                         cursor: 'pointer',
                                         borderRadius: '8px',
                                         overflow: 'hidden'
@@ -2738,7 +2728,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                       <Card
                                         background={step.displayType === 'list' ? 'bg-surface-selected' : 'bg-surface'}
                                         padding="300"
-                                        style={{ 
+                                        style={{
                                           border: step.displayType === 'list' ? '2px solid var(--p-color-border-emphasis)' : '1px solid var(--p-color-border)',
                                           transition: 'all 0.15s ease'
                                         }}
@@ -2750,20 +2740,20 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                               {/* Expanded section */}
                                               <rect x="12" y="10" width="56" height="8" rx="2" fill="#8C9196" fillOpacity="0.3"/>
                                               <path d="M60 14L64 11L64 17L60 14Z" fill="#8C9196" transform="rotate(90 62 14)"/>
-                                              
+
                                               {/* Expanded content */}
                                               <rect x="16" y="22" width="48" height="20" rx="2" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1" strokeOpacity="0.2"/>
                                               <rect x="20" y="26" width="20" height="12" rx="1" fill="#8C9196" fillOpacity="0.2"/>
                                               <rect x="44" y="28" width="16" height="2" rx="1" fill="#8C9196" fillOpacity="0.4"/>
                                               <rect x="44" y="32" width="12" height="2" rx="1" fill="#8C9196" fillOpacity="0.3"/>
-                                              
+
                                               {/* Collapsed sections */}
                                               <rect x="12" y="46" width="56" height="8" rx="2" fill="#8C9196" fillOpacity="0.2"/>
                                               <path d="M60 50L63 47L57 47L60 50Z" fill="#8C9196" fillOpacity="0.6"/>
-                                              
+
                                               <rect x="12" y="58" width="56" height="8" rx="2" fill="#8C9196" fillOpacity="0.2"/>
                                               <path d="M60 62L63 59L57 59L60 62Z" fill="#8C9196" fillOpacity="0.6"/>
-                                              
+
                                               <rect x="12" y="70" width="56" height="8" rx="2" fill="#8C9196" fillOpacity="0.15"/>
                                               <path d="M60 74L63 71L57 71L60 74Z" fill="#8C9196" fillOpacity="0.5"/>
                                             </svg>
@@ -2780,7 +2770,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                                       </Card>
                                     </div>
                                   </Box>
-                                </InlineStack>
+                                </BlockStack>
                               </Box>
                             </Box>
 
@@ -2848,10 +2838,10 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
             if (stepIndex !== -1) {
               // Mark products field as touched
               markFieldTouched(`step_${stepIndex}_products`);
-              
+
               // Fetch details for newly selected products
               await fetchProductDetails(productIds);
-              
+
               updateStep(stepIndex, {
                 products: productIds.map((id, index) => ({
                   id,

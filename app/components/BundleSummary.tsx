@@ -217,7 +217,7 @@ export function BundleSummary({
       case 'grid': return 'Grid';
       case 'slider': return 'Slider';
       case 'modal': return 'Modal';
-      case 'selection': return 'Selection Box';
+      case 'selection': return 'Selection';
       case 'stepper': return 'Stepper';
       default: return 'Unknown';
     }

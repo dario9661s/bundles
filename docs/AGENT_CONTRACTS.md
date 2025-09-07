@@ -678,6 +678,157 @@ interface BulkOperationStatus {
 
 ---
 
+## 🤝 Contract 10: Combination Images
+
+### Metaobject Structure
+```typescript
+// New metaobject type: bundle_combination
+interface BundleCombination {
+  id: string // Metaobject ID
+  products: string[] // Array of product GIDs
+  imageUrl: string // CDN URL for the uploaded image
+  imageId: string // Shopify MediaImage GID
+  title?: string // Optional label like "Red Shirt + Blue Pants"
+}
+
+// Updated Bundle interface with combination references
+interface BundleWithCombinations extends Bundle {
+  combinationImages?: string[] // Array of metaobject IDs referencing bundle_combination
+}
+```
+
+### Combination Image Management
+```typescript
+// GET /app/api/bundles/:bundleId/combinations
+interface GetCombinationsRequest {
+  bundleId: string // URL parameter
+}
+
+interface GetCombinationsResponse {
+  combinations: Array<{
+    id: string // Metaobject ID
+    products: Array<{
+      id: string // Product GID
+      title: string
+      featuredImage?: string
+    }>
+    imageUrl: string
+    imageId: string
+    title?: string
+  }>
+  // All available products from bundle steps for UI
+  availableProducts: Array<{
+    id: string
+    title: string
+    stepTitle: string
+    stepPosition: number
+  }>
+}
+```
+
+### Create Combination
+```typescript
+// POST /app/api/bundles/:bundleId/combinations
+interface CreateCombinationRequest {
+  productIds: string[] // Array of product GIDs (2 or more)
+  imageBase64: string // Base64 encoded image data
+  title?: string // Optional label
+}
+
+interface CreateCombinationResponse {
+  combination: {
+    id: string
+    products: string[]
+    imageUrl: string
+    imageId: string
+    title?: string
+  }
+}
+```
+
+### Update Combination
+```typescript
+// PUT /app/api/bundles/:bundleId/combinations/:combinationId
+interface UpdateCombinationRequest {
+  title?: string
+  imageBase64?: string // Optional new image
+}
+
+interface UpdateCombinationResponse {
+  combination: {
+    id: string
+    products: string[]
+    imageUrl: string
+    imageId: string
+    title?: string
+  }
+}
+```
+
+### Delete Combination
+```typescript
+// DELETE /app/api/bundles/:bundleId/combinations/:combinationId
+interface DeleteCombinationResponse {
+  success: boolean
+}
+```
+
+### Storefront Combination Matching
+```typescript
+// Extended StorefrontBundleResponse
+interface StorefrontBundleWithCombinations extends StorefrontBundleResponse {
+  bundle: StorefrontBundleResponse['bundle'] & {
+    // Add combinations for theme display
+    combinations?: Array<{
+      products: string[] // Product GIDs
+      imageUrl: string
+      title?: string
+    }>
+  }
+}
+
+// Frontend matching function (for reference)
+function findCombinationImage(
+  selectedProductIds: string[], 
+  combinations: Array<{ products: string[], imageUrl: string }>
+): string | null {
+  const sortedSelected = [...selectedProductIds].sort().join(',');
+  const match = combinations.find(combo => 
+    [...combo.products].sort().join(',') === sortedSelected
+  );
+  return match?.imageUrl || null;
+}
+```
+
+### Frontend Component Props
+```typescript
+// Combination Images Tab Component
+interface CombinationImagesTabProps {
+  bundleId: string
+  combinations: GetCombinationsResponse['combinations']
+  availableProducts: GetCombinationsResponse['availableProducts']
+  onCreateCombination: (data: CreateCombinationRequest) => Promise<void>
+  onUpdateCombination: (id: string, data: UpdateCombinationRequest) => Promise<void>
+  onDeleteCombination: (id: string) => Promise<void>
+  loading?: boolean
+  error?: string
+}
+
+// Combination Picker Component
+interface CombinationPickerProps {
+  availableProducts: Array<{
+    id: string
+    title: string
+    stepTitle: string
+  }>
+  onSelectCombination: (productIds: string[]) => void
+  minProducts?: number // Default: 2
+  maxProducts?: number // Default: unlimited
+}
+```
+
+---
+
 ## ⚠️ Contract Rules
 
 1. **NO MODIFICATIONS** without updating both agents
