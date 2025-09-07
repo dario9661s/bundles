@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Badge,
   Card,
@@ -9,14 +9,17 @@ import {
   Spinner,
   BlockStack,
   Button,
-  ButtonGroup,
   Box,
   InlineError,
   Modal,
   TextField,
   Select,
   FormLayout,
+  InlineStack,
+  Popover,
+  ActionList,
 } from "@shopify/polaris";
+import { MenuHorizontalIcon } from "@shopify/polaris-icons";
 import type { Bundle } from "~/types/bundle";
 
 interface BundleListProps {
@@ -47,12 +50,16 @@ export function BundleList({
   error,
   actionLoadingIds = new Set(),
 }: BundleListProps) {
+  
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [duplicatingBundleId, setDuplicatingBundleId] = useState<string | null>(null);
   const [duplicateTitle, setDuplicateTitle] = useState("");
   const [duplicateStatus, setDuplicateStatus] = useState<"active" | "draft">("draft");
   const [duplicating, setDuplicating] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingBundle, setDeletingBundle] = useState<Bundle | null>(null);
+  const [navigatingToBundleId, setNavigatingToBundleId] = useState<string | null>(null);
 
   const handleDuplicateClick = useCallback((bundle: Bundle) => {
     setDuplicatingBundleId(bundle.id);
@@ -111,15 +118,58 @@ export function BundleList({
     setDuplicateTitle("");
     setDuplicateError(null);
   }, []);
-  if (loading) {
+  
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deletingBundle) return;
+    
+    try {
+      await onDelete(deletingBundle.id);
+      setDeleteModalOpen(false);
+      setDeletingBundle(null);
+    } catch (error) {
+      console.error('Delete Bundle Error:', error);
+    }
+  }, [deletingBundle, onDelete]);
+  
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteModalOpen(false);
+    setDeletingBundle(null);
+  }, []);
+
+  if (loading && bundles.length === 0) {
+    // Show skeleton loading state with placeholder items
+    const placeholderItems = Array.from({ length: 3 }, (_, index) => ({
+      id: `placeholder-${index}`,
+      title: '',
+      status: 'draft' as const,
+    }));
+
     return (
       <Card>
-        <Box padding="400">
-          <BlockStack gap="400" align="center">
-            <Spinner accessibilityLabel="Loading bundles" />
-            <Text variant="bodyMd" tone="subdued">Loading bundles...</Text>
-          </BlockStack>
-        </Box>
+        <ResourceList
+          resourceName={resourceName}
+          items={placeholderItems}
+          renderItem={() => (
+            <Box padding="400">
+              <BlockStack gap="300">
+                <InlineStack align="space-between">
+                  <InlineStack gap="300">
+                    <Box background="bg-surface-secondary" borderRadius="100" minHeight="24px" width="60px" />
+                    <Box background="bg-surface-secondary" borderRadius="100" minHeight="24px" width="200px" />
+                  </InlineStack>
+                  <Box background="bg-surface-secondary" borderRadius="100" minHeight="32px" width="32px" />
+                </InlineStack>
+                <InlineStack gap="400">
+                  <Box background="bg-surface-secondary" borderRadius="100" minHeight="20px" width="80px" />
+                  <Box background="bg-surface-secondary" borderRadius="100" minHeight="20px" width="100px" />
+                  <Box background="bg-surface-secondary" borderRadius="100" minHeight="20px" width="60px" />
+                </InlineStack>
+                <Box background="bg-surface-secondary" borderRadius="100" minHeight="16px" width="140px" />
+              </BlockStack>
+            </Box>
+          )}
+          loading
+        />
       </Card>
     );
   }
@@ -159,97 +209,134 @@ export function BundleList({
         renderItem={(bundle) => {
           const { id, handle, title, status, discountType, discountValue, steps, updatedAt } = bundle;
 
-          const statusBadge = (
-            <Badge
-              status={status === 'active' ? 'success' : status === 'inactive' ? 'warning' : 'info'}
-            >
-              {status}
-            </Badge>
-          );
-
           const discountText = discountType === 'percentage' 
             ? `${discountValue}% off`
             : discountType === 'fixed'
             ? `$${discountValue} off`
-            : `$${discountValue} total`;
+            : `$${discountValue} fixed price`;
+
+          // Calculate total products across all steps
+          const totalProducts = steps.reduce((sum, step) => sum + step.products.length, 0);
 
           return (
             <ResourceItem
               id={id}
               url={`/app/bundles/${encodeURIComponent(id)}`}
               accessibilityLabel={`View details for ${title}`}
-              persistActions
+              onClick={() => setNavigatingToBundleId(id)}
+              actions={[
+                {
+                  content: 'Duplicate',
+                  onAction: () => {
+                    handleDuplicateClick(bundle);
+                  },
+                },
+                {
+                  content: status === 'active' ? 'Deactivate' : 'Activate',
+                  onAction: () => {
+                    const newStatus = status === 'active' ? 'inactive' : 'active';
+                    onStatusToggle(id, newStatus);
+                  },
+                },
+                {
+                  content: 'Delete',
+                  destructive: true,
+                  onAction: () => {
+                    setDeletingBundle(bundle);
+                    setDeleteModalOpen(true);
+                  },
+                },
+              ]}
             >
-              <Box>
-                <BlockStack gap="200">
-                  <Box>
-                    <BlockStack gap="100">
-                      <Text variant="headingMd" as="h3">{title}</Text>
-                      <Box>
-                        <Text variant="bodySm" tone="subdued">
-                          Handle: {handle}
+              <Box position="relative">
+                {/* Loading state - show inline spinner instead of overlay */}
+                {navigatingToBundleId === id && (
+                  <Box 
+                    position="absolute" 
+                    insetBlockStart="50%" 
+                    insetInlineEnd="16px" 
+                    style={{ transform: 'translateY(-50%)' }}
+                    zIndex="10"
+                  >
+                    <InlineStack gap="200" align="center">
+                      <Spinner size="small" />
+                    </InlineStack>
+                  </Box>
+                )}
+                
+                {/* Action loading overlay - keep this for delete/status actions */}
+                {actionLoadingIds.has(id) && (
+                  <Box 
+                    position="absolute" 
+                    insetBlockStart="0" 
+                    insetInlineStart="0" 
+                    insetBlockEnd="0" 
+                    insetInlineEnd="0" 
+                    background="bg-surface" 
+                    opacity="0.9"
+                    zIndex="1"
+                  >
+                    <Box padding="400">
+                      <InlineStack align="center">
+                        <Spinner size="small" />
+                      </InlineStack>
+                    </Box>
+                  </Box>
+                )}
+                
+                <BlockStack gap="300">
+                  {/* Header with status, title and actions */}
+                  <InlineStack align="space-between" blockAlign="start">
+                    <InlineStack gap="300" align="start" blockAlign="center">
+                      {/* Status on the left */}
+                      <Badge
+                        tone={status === 'active' ? 'success' : status === 'draft' ? 'info' : 'attention'}
+                        size="small"
+                      >
+                        {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
+                      </Badge>
+                      
+                      {/* Title */}
+                      <Box maxWidth="400px">
+                        <Text variant="headingMd" as="h3" fontWeight="semibold">
+                          {title}
                         </Text>
                       </Box>
-                    </BlockStack>
-                  </Box>
+                    </InlineStack>
+                  </InlineStack>
                   
+                  {/* Key info in a subtle inline format */}
                   <Box>
-                    <BlockStack gap="200">
-                      <Box>
-                        {statusBadge}
-                      </Box>
-                      <Text variant="bodyMd">
-                        {steps.length} {steps.length === 1 ? 'step' : 'steps'} • {discountText}
-                      </Text>
-                      <Text variant="bodySm" tone="subdued">
-                        <span suppressHydrationWarning>
-                          Last updated: {new Date(updatedAt).toLocaleDateString()}
-                        </span>
-                      </Text>
-                    </BlockStack>
+                    <InlineStack gap="400" wrap={false}>
+                      <InlineStack gap="100">
+                        <Text variant="bodyMd" tone="subdued">Products:</Text>
+                        <Text variant="bodyMd" fontWeight="semibold">{totalProducts}</Text>
+                      </InlineStack>
+                      
+                      <Box minWidth="1px" maxWidth="1px" background="border-subdued" />
+                      
+                      <InlineStack gap="100">
+                        <Text variant="bodyMd" tone="subdued">Discount:</Text>
+                        <Text variant="bodyMd" fontWeight="semibold" tone={discountValue > 0 ? 'success' : undefined}>
+                          {discountText}
+                        </Text>
+                      </InlineStack>
+                      
+                      <Box minWidth="1px" maxWidth="1px" background="border-subdued" />
+                      
+                      <InlineStack gap="100">
+                        <Text variant="bodyMd" tone="subdued">Steps:</Text>
+                        <Text variant="bodyMd" fontWeight="semibold">{steps.length}</Text>
+                      </InlineStack>
+                    </InlineStack>
                   </Box>
                   
-                  <Box paddingBlockStart="200">
-                    <ButtonGroup>
-                      <Button 
-                        onClick={() => onEdit(id)}
-                        disabled={actionLoadingIds.has(id)}
-                      >
-                        Edit
-                      </Button>
-                      <Button 
-                        onClick={() => handleDuplicateClick(bundle)} 
-                        plain
-                        disabled={actionLoadingIds.has(id)}
-                      >
-                        Duplicate
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          const newStatus = status === 'active' ? 'inactive' : 'active';
-                          await onStatusToggle(id, newStatus);
-                        }}
-                        plain
-                        loading={actionLoadingIds.has(id)}
-                        disabled={actionLoadingIds.has(id)}
-                      >
-                        {status === 'active' ? 'Deactivate' : 'Activate'}
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          if (confirm(`Are you sure you want to delete "${title}"?`)) {
-                            await onDelete(id);
-                          }
-                        }}
-                        tone="critical"
-                        plain
-                        loading={actionLoadingIds.has(id)}
-                        disabled={actionLoadingIds.has(id)}
-                      >
-                        Delete
-                      </Button>
-                    </ButtonGroup>
-                  </Box>
+                  {/* Footer */}
+                  <Text variant="bodySm" tone="subdued">
+                    <span suppressHydrationWarning>
+                      Last updated {new Date(updatedAt).toLocaleDateString()}
+                    </span>
+                  </Text>
                 </BlockStack>
               </Box>
             </ResourceItem>
@@ -308,6 +395,31 @@ export function BundleList({
               disabled={duplicating}
             />
           </FormLayout>
+        </Modal.Section>
+      </Modal>
+      
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteModalOpen}
+        onClose={handleDeleteCancel}
+        title="Delete bundle?"
+        primaryAction={{
+          content: "Delete bundle",
+          destructive: true,
+          onAction: handleDeleteConfirm,
+          loading: deletingBundle && actionLoadingIds.has(deletingBundle.id),
+          disabled: deletingBundle && actionLoadingIds.has(deletingBundle.id),
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: handleDeleteCancel,
+            disabled: deletingBundle && actionLoadingIds.has(deletingBundle.id),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <p>Are you sure you want to delete "{deletingBundle?.title}"? This action cannot be undone.</p>
         </Modal.Section>
       </Modal>
     </Card>

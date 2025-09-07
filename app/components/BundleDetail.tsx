@@ -110,6 +110,90 @@ export function BundleDetail({ bundle, onEdit, onDelete, onDuplicate }: BundleDe
     return <Badge status="info">{layoutMap[bundle.layoutType] || bundle.layoutType}</Badge>;
   };
 
+  const renderLayoutSettings = (settings: any) => {
+    if (!settings || typeof settings !== 'object') return null;
+    
+    const formatSettingName = (key: string): string => {
+      return key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim();
+    };
+
+    const formatSettingValue = (value: any): React.ReactNode => {
+      if (typeof value === 'boolean') {
+        return (
+          <Badge status={value ? 'success' : 'critical'}>
+            {value ? 'Enabled' : 'Disabled'}
+          </Badge>
+        );
+      }
+      
+      if (typeof value === 'string') {
+        return <Text variant="bodyMd" fontWeight="medium">{value}</Text>;
+      }
+      
+      if (typeof value === 'number') {
+        return <Text variant="bodyMd" fontWeight="medium">{value}</Text>;
+      }
+      
+      if (Array.isArray(value)) {
+        return (
+          <InlineStack gap="100" wrap>
+            {value.map((item, index) => (
+              <Badge key={index} status="info">{String(item)}</Badge>
+            ))}
+          </InlineStack>
+        );
+      }
+      
+      if (typeof value === 'object' && value !== null) {
+        // Handle nested objects by flattening them
+        const entries = Object.entries(value);
+        if (entries.length === 0) {
+          return <Text variant="bodySm">No settings configured</Text>;
+        }
+        
+        return (
+          <BlockStack gap="100">
+            {entries.map(([subKey, subValue]) => (
+              <InlineStack key={subKey} gap="200" align="space-between">
+                <Text variant="bodySm" tone="subdued">{formatSettingName(subKey)}</Text>
+                <Text variant="bodySm" fontWeight="medium">
+                  {typeof subValue === 'object' && subValue !== null 
+                    ? Object.entries(subValue)
+                        .map(([nestedKey, nestedValue]) => 
+                          `${formatSettingName(nestedKey)}: ${String(nestedValue)}`
+                        )
+                        .join(', ')
+                    : String(subValue)
+                  }
+                </Text>
+              </InlineStack>
+            ))}
+          </BlockStack>
+        );
+      }
+      
+      return <Text variant="bodyMd">{String(value)}</Text>;
+    };
+
+    return (
+      <BlockStack gap="300">
+        {Object.entries(settings).map(([key, value]) => (
+          <BlockStack key={key} gap="100">
+            <Text variant="bodyMd" fontWeight="semibold" tone="subdued">
+              {formatSettingName(key)}
+            </Text>
+            <Box paddingInlineStart="200">
+              {formatSettingValue(value)}
+            </Box>
+          </BlockStack>
+        ))}
+      </BlockStack>
+    );
+  };
+
   return (
     <BlockStack gap="600">
       {/* Header Information */}
@@ -122,7 +206,6 @@ export function BundleDetail({ bundle, onEdit, onDelete, onDuplicate }: BundleDe
             </BlockStack>
             <InlineStack gap="200">
               {getStatusBadge()}
-              {getLayoutBadge()}
             </InlineStack>
           </InlineStack>
           
@@ -264,16 +347,7 @@ export function BundleDetail({ bundle, onEdit, onDelete, onDuplicate }: BundleDe
               <Divider />
               <Text variant="headingSm" as="h4">Advanced Settings</Text>
               <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                <pre style={{ 
-                  fontSize: '12px', 
-                  overflow: 'auto',
-                  fontFamily: 'monospace',
-                  margin: 0,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
-                }}>
-                  {JSON.stringify(bundle.layoutSettings, null, 2)}
-                </pre>
+                {renderLayoutSettings(bundle.layoutSettings)}
               </Box>
             </>
           )}

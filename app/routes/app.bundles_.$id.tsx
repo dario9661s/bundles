@@ -117,13 +117,6 @@ export default function BundleDetailPage() {
     navigate(`/app/bundles/${encodeURIComponent(bundle.id)}/edit`);
   }, [navigate, bundle.id]);
 
-  const handleDelete = useCallback(() => {
-    if (window.confirm(`Are you sure you want to delete "${bundle.title}"? This action cannot be undone.`)) {
-      const formData = new FormData();
-      formData.append("_action", "delete");
-      submit(formData, { method: "post" });
-    }
-  }, [submit, bundle.title]);
 
   const handleDuplicateClick = useCallback(() => {
     setDuplicateTitle(`${bundle.title} - Copy`);
@@ -173,11 +166,6 @@ export default function BundleDetailPage() {
             onAction: handleDuplicateClick,
             loading: duplicating,
           },
-          {
-            content: "Delete",
-            destructive: true,
-            onAction: handleDelete,
-          },
         ]}
       >
         <Layout>
@@ -185,7 +173,7 @@ export default function BundleDetailPage() {
             <BundleDetail
               bundle={bundle}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onDelete={() => {}}
               onDuplicate={handleDuplicateClick}
             />
           </Layout.Section>
@@ -243,6 +231,7 @@ export default function BundleDetailPage() {
           </FormLayout>
         </Modal.Section>
       </Modal>
+
     </>
   );
 }
