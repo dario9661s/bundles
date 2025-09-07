@@ -42,6 +42,16 @@ export interface LayoutSettings {
     progressTracking: "counter" | "percentage" | "visual"; // Default: "counter"
     selectionLimit: number; // Max selections across all steps
   };
+  
+  // Stepper-specific settings
+  stepperSettings?: {
+    showProgressBar: boolean; // Default: true
+    progressBarPosition: "top" | "bottom"; // Default: "top"
+    allowBackNavigation: boolean; // Default: true
+    completionBehavior: "summary" | "auto-add" | "redirect"; // Default: "summary"
+    showStepNumbers: boolean; // Default: true
+    animationStyle: "slide" | "fade" | "none"; // Default: "slide"
+  };
 }
 
 export interface Bundle {
@@ -51,7 +61,7 @@ export interface Bundle {
   status: "active" | "inactive" | "draft";
   discountType: "percentage" | "fixed" | "total";
   discountValue: number;
-  layoutType: "grid" | "slider" | "modal" | "selection";
+  layoutType: "grid" | "slider" | "modal" | "selection" | "stepper";
   mobileColumns: number; // 1-4
   desktopColumns: number; // 1-6
   steps: BundleStep[];
@@ -103,7 +113,7 @@ export interface CreateBundleRequest {
   status: "active" | "draft";
   discountType: "percentage" | "fixed" | "total";
   discountValue: number;
-  layoutType: "grid" | "slider" | "modal" | "selection";
+  layoutType: "grid" | "slider" | "modal" | "selection" | "stepper";
   mobileColumns: number;
   desktopColumns: number;
   layoutSettings?: LayoutSettings; // Added per Contract 7

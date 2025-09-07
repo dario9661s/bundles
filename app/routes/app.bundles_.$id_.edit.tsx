@@ -135,6 +135,8 @@ export default function EditBundlePage() {
     discountValue: number;
     steps: any[];
     isValid: boolean;
+    validationErrors?: Record<string, string>;
+    touched?: Record<string, boolean>;
   }>({
     title: bundle.title,
     status: bundle.status,
@@ -143,6 +145,8 @@ export default function EditBundlePage() {
     discountValue: bundle.discountValue,
     steps: bundle.steps || [],
     isValid: true,
+    validationErrors: {},
+    touched: {},
   });
   
   // Update current status when bundle changes (e.g., after navigation)
@@ -295,6 +299,8 @@ export default function EditBundlePage() {
               discountValue={formState.discountValue}
               steps={formState.steps}
               isValid={formState.isValid}
+              validationErrors={formState.validationErrors}
+              touched={formState.touched}
               isEdit={true}
               isSubmitting={isSubmitting}
               onSubmit={() => {

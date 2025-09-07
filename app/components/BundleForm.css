@@ -9,3 +9,22 @@
     opacity: 1;
   }
 }
+
+/* Smart field highlighting for required fields */
+@keyframes highlight-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px var(--p-color-border-attention);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--p-color-border-attention-subdued);
+  }
+}
+
+.field-highlight {
+  position: relative;
+  animation: highlight-pulse 2s ease-in-out infinite;
+  border-radius: var(--p-border-radius-2);
+  padding: var(--p-space-2);
+  margin: calc(-1 * var(--p-space-2));
+  background-color: var(--p-color-bg-surface-attention-subdued);
+}

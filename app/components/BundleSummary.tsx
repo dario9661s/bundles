@@ -23,6 +23,8 @@ interface BundleSummaryProps {
   discountValue: number;
   steps: FormStep[];
   isValid: boolean;
+  validationErrors?: Record<string, string>;
+  touched?: Record<string, boolean>;
   isEdit: boolean;
   isSubmitting?: boolean;
   onSubmit: () => void;
@@ -36,6 +38,8 @@ export function BundleSummary({
   discountValue,
   steps,
   isValid,
+  validationErrors = {},
+  touched = {},
   isEdit,
   isSubmitting = false,
   onSubmit,
@@ -69,10 +73,43 @@ export function BundleSummary({
     }
   };
 
+  // Get missing required fields info
+  const getMissingRequiredFields = () => {
+    const missing: { field: string; tab: string }[] = [];
+    
+    // Check basic fields
+    if (validationErrors?.title) {
+      missing.push({ field: 'Title', tab: 'Basic Info' });
+    }
+    if (validationErrors?.discountValue) {
+      missing.push({ field: 'Discount value', tab: 'Pricing' });
+    }
+    
+    // Check steps
+    if (validationErrors?.steps) {
+      missing.push({ field: 'At least one step', tab: 'Bundle Steps' });
+    }
+    
+    // Check each step
+    steps.forEach((step, index) => {
+      const isStepTouched = step.title.trim() || step.products.length > 0;
+      if (isStepTouched) {
+        if (validationErrors?.[`step_${index}_title`]) {
+          missing.push({ field: `Step ${index + 1} title`, tab: 'Bundle Steps' });
+        }
+        if (validationErrors?.[`step_${index}_products`]) {
+          missing.push({ field: `Step ${index + 1} products`, tab: 'Bundle Steps' });
+        }
+      }
+    });
+    
+    return missing;
+  };
+
   const renderMiniLayoutSVG = () => {
     const svgProps = {
-      width: "60",
-      height: "60",
+      width: "72",
+      height: "72",
       viewBox: "0 0 100 100",
       fill: "none",
       xmlns: "http://www.w3.org/2000/svg"
@@ -134,6 +171,37 @@ export function BundleSummary({
           </svg>
         );
       
+      case 'stepper':
+        return (
+          <svg {...svgProps}>
+            {/* Progress bar */}
+            <rect x="10" y="15" width="80" height="3" rx="1.5" fill="#8C9196" fillOpacity="0.2"/>
+            <rect x="10" y="15" width="35" height="3" rx="1.5" fill="#00AA5E" fillOpacity="0.8"/>
+            
+            {/* Step indicators */}
+            <circle cx="20" cy="16.5" r="6" fill="#00AA5E" stroke="#FFFFFF" strokeWidth="2"/>
+            <text x="20" y="20" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold" fontFamily="Arial">1</text>
+            
+            <circle cx="50" cy="16.5" r="6" fill="#8C9196" fillOpacity="0.8" stroke="#FFFFFF" strokeWidth="2"/>
+            <text x="50" y="20" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold" fontFamily="Arial">2</text>
+            
+            <circle cx="80" cy="16.5" r="6" fill="#8C9196" fillOpacity="0.3" stroke="#FFFFFF" strokeWidth="2"/>
+            <text x="80" y="20" textAnchor="middle" fill="#8C9196" fontSize="8" fontWeight="bold" fontFamily="Arial">3</text>
+            
+            {/* Current step content */}
+            <rect x="15" y="30" width="70" height="35" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1"/>
+            
+            {/* Products */}
+            <rect x="22" y="37" width="18" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+            <rect x="41" y="37" width="18" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+            <rect x="60" y="37" width="18" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+            
+            {/* Navigation */}
+            <rect x="25" y="72" width="20" height="15" rx="2" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1"/>
+            <rect x="55" y="72" width="20" height="15" rx="2" fill="#00AA5E" fillOpacity="0.8"/>
+          </svg>
+        );
+      
       default:
         return (
           <svg {...svgProps}>
@@ -150,6 +218,7 @@ export function BundleSummary({
       case 'slider': return 'Slider';
       case 'modal': return 'Modal';
       case 'selection': return 'Selection Box';
+      case 'stepper': return 'Stepper';
       default: return 'Unknown';
     }
   };
@@ -180,10 +249,10 @@ export function BundleSummary({
           {/* Layout Visual */}
           <Box>
             <BlockStack gap="200" inlineAlign="center">
-              <Box width="60px" height="60px">
+              <Box width="72px" height="72px">
                 {renderMiniLayoutSVG()}
               </Box>
-              <Text variant="bodySm" alignment="center" tone="subdued">
+              <Text variant="bodyMd" alignment="center" fontWeight="semibold">
                 {formatLayoutType()} Layout
               </Text>
             </BlockStack>
@@ -266,10 +335,26 @@ export function BundleSummary({
             {isEdit ? "Update Bundle" : "Create Bundle"}
           </Button>
 
-          {!isValid && (
-            <Text variant="bodySm" tone="critical" alignment="center">
-              Complete required fields to save
-            </Text>
+          {!isValid && getMissingRequiredFields().length > 0 && (
+            <Box background="bg-fill-caution-secondary" padding="300" borderRadius="200">
+              <BlockStack gap="200">
+                <InlineStack gap="100" align="start">
+                  <Text variant="bodySm">⚠️</Text>
+                  <Text variant="bodySm" fontWeight="semibold">
+                    Required fields needed
+                  </Text>
+                </InlineStack>
+                <BlockStack gap="100">
+                  {getMissingRequiredFields().map((item, index) => (
+                    <InlineStack key={index} gap="100" wrap={false}>
+                      <Text variant="bodySm" tone="subdued">•</Text>
+                      <Text variant="bodySm" fontWeight="semibold">{item.field}</Text>
+                      <Badge size="small" tone="caution">{item.tab}</Badge>
+                    </InlineStack>
+                  ))}
+                </BlockStack>
+              </BlockStack>
+            </Box>
           )}
         </BlockStack>
       </Card>

@@ -18,6 +18,8 @@ export default function CreateBundlePage() {
     discountValue: number;
     steps: any[];
     isValid: boolean;
+    validationErrors?: Record<string, string>;
+    touched?: Record<string, boolean>;
   }>({
     title: '',
     status: 'draft',
@@ -26,6 +28,8 @@ export default function CreateBundlePage() {
     discountValue: 0,
     steps: [],
     isValid: false,
+    validationErrors: {},
+    touched: {},
   });
 
   const handleSubmit = useCallback(async (data: CreateBundleRequest) => {
@@ -93,6 +97,8 @@ export default function CreateBundlePage() {
             discountValue={formState.discountValue}
             steps={formState.steps}
             isValid={formState.isValid}
+            validationErrors={formState.validationErrors}
+            touched={formState.touched}
             isEdit={false}
             isSubmitting={isSubmitting}
             onSubmit={() => {
