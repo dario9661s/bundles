@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate, useSubmit, useNavigation, Link, useActionData } from "@remix-run/react";
-import { Page, Layout, Button, BlockStack, TextField, Card, Filters, ChoiceList, InlineStack, Spinner, Text, Banner, Frame, Toast, Pagination } from "@shopify/polaris";
+import { Page, Layout, Button, BlockStack, TextField, Card, Filters, ChoiceList, InlineStack, Spinner, Text, Banner, Frame, Toast, Pagination, Select, Box, ButtonGroup } from "@shopify/polaris";
 import { authenticate } from "~/shopify.server";
 import { BundleList } from "~/components/BundleList";
 import { listBundles, deleteBundle, updateBundle } from "~/services/bundle-metaobject.server";
@@ -17,6 +17,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const limit = parseInt(url.searchParams.get("limit") || "20");
   const status = url.searchParams.get("status") || "all";
   const search = url.searchParams.get("search") || "";
+  const sort = url.searchParams.get("sort") || "updated";
 
   try {
     const result = await listBundles(admin, page, limit, status === "all" ? undefined : status as any);
@@ -29,6 +30,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         bundle.title.toLowerCase().includes(searchLower) ||
         bundle.status.toLowerCase().includes(searchLower)
       );
+    }
+    
+    // Apply sorting
+    if (sort && sort !== 'updated') {
+      filteredBundles = [...filteredBundles].sort((a, b) => {
+        switch (sort) {
+          case 'status':
+            const statusOrder = { 'active': 0, 'draft': 1, 'inactive': 2 };
+            return (statusOrder[a.status] || 3) - (statusOrder[b.status] || 3);
+          
+          case 'discount':
+            const aDiscount = a.discountType === 'percentage' ? a.discountValue : 0;
+            const bDiscount = b.discountType === 'percentage' ? b.discountValue : 0;
+            return bDiscount - aDiscount; // Highest discount first
+          
+          case 'title':
+            return a.title.localeCompare(b.title);
+          
+          default:
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        }
+      });
     }
     
     const response: ListBundlesResponse = {
@@ -121,6 +144,7 @@ export default function BundlesPage() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<string>('updated'); // Default sort by updated date
   const [isClientSide, setIsClientSide] = useState(false);
   const [lastSearchParams, setLastSearchParams] = useState("");
   const [toastActive, setToastActive] = useState(false);
@@ -132,6 +156,7 @@ export default function BundlesPage() {
   // Bulk operations state
   const [selectedBundleIds, setSelectedBundleIds] = useState<string[]>([]);
   const [bulkOperationInProgress, setBulkOperationInProgress] = useState(false);
+  const [individualActionInProgress, setIndividualActionInProgress] = useState(false);
   
   const isLoading = navigation.state !== "idle";
   const isSearching = fetcher.state !== "idle";
@@ -163,14 +188,8 @@ export default function BundlesPage() {
         setToastActive(true);
       }
       
-      // Clear action bundle ID from loading state
-      if (actionData.bundleId) {
-        setActionBundleIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(actionData.bundleId);
-          return newSet;
-        });
-      }
+      // Clear individual action loading state
+      setIndividualActionInProgress(false);
     }
   }, [actionData]);
 
@@ -180,7 +199,7 @@ export default function BundlesPage() {
     
     // Only search if we have at least 2 characters or a status filter
     const shouldSearch = searchValue.length >= 2 || searchValue === "";
-    if (!shouldSearch && statusFilter.length === 0) return;
+    if (!shouldSearch && statusFilter.length === 0 && !sortBy) return;
     
     const timeoutId = setTimeout(() => {
       const searchParams = new URLSearchParams();
@@ -194,6 +213,10 @@ export default function BundlesPage() {
         searchParams.set("status", statusFilter[0]);
       }
       
+      if (sortBy && sortBy !== 'updated') {
+        searchParams.set("sort", sortBy);
+      }
+      
       const newSearchParams = searchParams.toString();
       
       // Only fetch if params actually changed
@@ -204,7 +227,7 @@ export default function BundlesPage() {
     }, 500); // 500ms debounce for better UX
 
     return () => clearTimeout(timeoutId);
-  }, [searchValue, statusFilter, isClientSide, lastSearchParams, fetcher]);
+  }, [searchValue, statusFilter, sortBy, isClientSide, lastSearchParams, fetcher]);
 
   const handleEdit = useCallback((bundleId: string) => {
     // Encode the GID to handle forward slashes
@@ -214,30 +237,31 @@ export default function BundlesPage() {
 
   const handleDelete = useCallback(async (bundleId: string) => {
     // Prevent double-clicks
-    if (actionBundleIds.has(bundleId)) return;
+    if (individualActionInProgress) return;
     
-    setActionBundleIds(prev => new Set(prev).add(bundleId));
+    setIndividualActionInProgress(true);
     const formData = new FormData();
     formData.append("action", "delete");
     formData.append("bundleId", bundleId);
     submit(formData, { method: "post" });
-  }, [submit, actionBundleIds]);
+  }, [submit, individualActionInProgress]);
 
   const handleStatusToggle = useCallback(async (bundleId: string, status: Bundle['status']) => {
     // Prevent double-clicks
-    if (actionBundleIds.has(bundleId)) return;
+    if (individualActionInProgress) return;
     
-    setActionBundleIds(prev => new Set(prev).add(bundleId));
+    setIndividualActionInProgress(true);
     const formData = new FormData();
     formData.append("action", "toggleStatus");
     formData.append("bundleId", bundleId);
     formData.append("status", status);
     submit(formData, { method: "post" });
-  }, [submit, actionBundleIds]);
+  }, [submit, individualActionInProgress]);
 
   const handleDuplicate = useCallback(async (bundleId: string, title: string, status?: "active" | "draft") => {
     try {
-      const result = await fetch(`/api/bundles/${bundleId}/duplicate`, {
+      const encodedBundleId = encodeURIComponent(bundleId);
+      const result = await fetch(`/api/bundles/${encodedBundleId}/duplicate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -248,10 +272,17 @@ export default function BundlesPage() {
         }),
       });
       
+      if (!result.ok) {
+        // Handle non-200 responses
+        const errorText = await result.text();
+        console.error("Duplicate API error:", result.status, errorText);
+        throw new Error(`API error: ${result.status} - ${errorText.includes('<!DOCTYPE') ? 'Server error' : errorText}`);
+      }
+
       const data = await result.json();
       console.log("Duplicate API response:", data);
       
-      if (result.ok && data.bundle) {
+      if (data.bundle) {
         // Show success toast
         setToastMessage(`Bundle duplicated successfully as "${data.bundle.title}"`);
         setToastError(false);
@@ -366,47 +397,12 @@ export default function BundlesPage() {
   const handleClearFilters = useCallback(() => {
     setSearchValue("");
     setStatusFilter([]);
+    setSortBy('updated');
   }, []);
 
-  // Filters configuration
-  const filters = [
-    {
-      key: "status",
-      label: "Status",
-      filter: (
-        <ChoiceList
-          title="Status"
-          titleHidden
-          choices={[
-            { label: "All", value: "all" },
-            { label: "Active", value: "active" },
-            { label: "Draft", value: "draft" },
-            { label: "Inactive", value: "inactive" },
-          ]}
-          selected={statusFilter.length > 0 ? statusFilter : ["all"]}
-          onChange={(value) => setStatusFilter(value)}
-          allowMultiple={false}
-        />
-      ),
-      shortcut: true,
-    },
-  ];
+  // Get current status filter for button states
+  const currentStatusFilter = statusFilter.length > 0 && !statusFilter.includes("all") ? statusFilter[0] : "all";
 
-  const appliedFilters = [];
-  if (searchValue) {
-    appliedFilters.push({
-      key: "search",
-      label: `Search: ${searchValue}`,
-      onRemove: () => setSearchValue(""),
-    });
-  }
-  if (statusFilter.length > 0 && !statusFilter.includes("all")) {
-    appliedFilters.push({
-      key: "status",
-      label: `Status: ${statusFilter[0]}`,
-      onRemove: () => setStatusFilter([]),
-    });
-  }
 
   return (
     <Frame>
@@ -420,10 +416,11 @@ export default function BundlesPage() {
         <Layout>
         <Layout.Section>
           <BlockStack gap="400">
-            {/* Search and Filters - only show after hydration */}
+            {/* Search and Controls - only show after hydration */}
             {isClientSide && (
               <Card>
                 <BlockStack gap="400">
+                  {/* Search Field - Full Width */}
                   <TextField
                     label="Search bundles"
                     labelHidden
@@ -437,16 +434,53 @@ export default function BundlesPage() {
                     suffix={isSearching ? <Spinner size="small" /> : undefined}
                   />
                   
-                  <Filters
-                    queryValue={searchValue}
-                    queryPlaceholder="Search bundles..."
-                    onQueryChange={setSearchValue}
-                    onQueryClear={() => setSearchValue("")}
-                    filters={filters}
-                    appliedFilters={appliedFilters}
-                    onClearAll={handleClearFilters}
-                    hideQueryField // We have our own search field above
-                  />
+                  {/* Filter Buttons and Sort Row */}
+                  <InlineStack gap="400" align="space-between" blockAlign="end">
+                    <Box>
+                      <BlockStack gap="200">
+                        <Text variant="bodySm" tone="subdued">Filter by status</Text>
+                        <ButtonGroup segmented>
+                          <Button 
+                            pressed={currentStatusFilter === "all"}
+                            onClick={() => setStatusFilter([])}
+                          >
+                            All
+                          </Button>
+                          <Button 
+                            pressed={currentStatusFilter === "active"}
+                            onClick={() => setStatusFilter(["active"])}
+                          >
+                            Active
+                          </Button>
+                          <Button 
+                            pressed={currentStatusFilter === "draft"}
+                            onClick={() => setStatusFilter(["draft"])}
+                          >
+                            Draft
+                          </Button>
+                          <Button 
+                            pressed={currentStatusFilter === "inactive"}
+                            onClick={() => setStatusFilter(["inactive"])}
+                          >
+                            Inactive
+                          </Button>
+                        </ButtonGroup>
+                      </BlockStack>
+                    </Box>
+                    <Box width="200px">
+                      <Select
+                        label="Sort by"
+                        options={[
+                          { label: "Last Updated", value: "updated" },
+                          { label: "Status", value: "status" },
+                          { label: "Discount %", value: "discount" },
+                          { label: "Title", value: "title" },
+                        ]}
+                        value={sortBy}
+                        onChange={setSortBy}
+                      />
+                    </Box>
+                  </InlineStack>
                 </BlockStack>
               </Card>
             )}
@@ -468,10 +502,10 @@ export default function BundlesPage() {
                   onBulkDelete={handleBulkDelete}
                   onBulkStatusUpdate={handleBulkStatusUpdate}
                   bulkOperationInProgress={bulkOperationInProgress}
+                  individualActionInProgress={individualActionInProgress}
                   
                   loading={isLoading || isSearching}
                   error={error}
-                  actionLoadingIds={actionBundleIds}
                 />
                 
                 {/* Pagination */}

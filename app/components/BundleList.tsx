@@ -45,10 +45,10 @@ interface BundleListProps {
   onBulkDelete?: (bundleIds: string[]) => Promise<BulkDeleteBundlesResponse>;
   onBulkStatusUpdate?: (bundleIds: string[], status: Bundle['status']) => Promise<BulkStatusUpdateResponse>;
   bulkOperationInProgress?: boolean;
+  individualActionInProgress?: boolean;
   
   loading?: boolean;
   error?: string;
-  actionLoadingIds?: Set<string>;
 }
 
 export function BundleList({
@@ -66,10 +66,10 @@ export function BundleList({
   onBulkDelete,
   onBulkStatusUpdate,
   bulkOperationInProgress = false,
+  individualActionInProgress = false,
   
   loading = false,
   error,
-  actionLoadingIds = new Set(),
 }: BundleListProps) {
   
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
@@ -88,6 +88,7 @@ export function BundleList({
   const [bulkNewStatus, setBulkNewStatus] = useState<Bundle['status']>('active');
   const [bulkOperationResult, setBulkOperationResult] = useState<BulkDeleteBundlesResponse | BulkStatusUpdateResponse | null>(null);
   const [showBulkResultModal, setShowBulkResultModal] = useState(false);
+  const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
   const handleDuplicateClick = useCallback((bundle: Bundle) => {
     setDuplicatingBundleId(bundle.id);
@@ -231,6 +232,12 @@ export function BundleList({
     }
   }, [onBulkStatusUpdate, selectedBundleIds, bulkNewStatus, onSelectionChange]);
 
+  // Define resourceName at the top to avoid initialization issues
+  const resourceName = {
+    singular: "bundle",
+    plural: "bundles",
+  };
+
   if (loading && bundles.length === 0) {
     // Show skeleton loading state with placeholder items
     const placeholderItems = Array.from({ length: 3 }, (_, index) => ({
@@ -278,11 +285,6 @@ export function BundleList({
       </Card>
     );
   }
-
-  const resourceName = {
-    singular: "bundle",
-    plural: "bundles",
-  };
 
   const emptyState = (
     <EmptyState
@@ -335,8 +337,34 @@ export function BundleList({
     </Box>
   );
 
+  // Navigation loading bar
+  const navigationLoadingBar = navigatingToBundleId && (
+    <Box paddingBlockStart="0" paddingBlockEnd="400" paddingInlineStart="0" paddingInlineEnd="0">
+      <ProgressBar progress={75} size="small" />
+      <Box paddingBlockStart="200">
+        <Text variant="bodySm" tone="subdued" alignment="center">
+          Opening bundle...
+        </Text>
+      </Box>
+    </Box>
+  );
+
+  // Individual action loading bar
+  const individualActionLoadingBar = individualActionInProgress && (
+    <Box paddingBlockStart="0" paddingBlockEnd="400" paddingInlineStart="0" paddingInlineEnd="0">
+      <ProgressBar progress={75} size="small" />
+      <Box paddingBlockStart="200">
+        <Text variant="bodySm" tone="subdued" alignment="center">
+          Processing action...
+        </Text>
+      </Box>
+    </Box>
+  );
+
   return (
     <Card>
+      {navigationLoadingBar}
+      {individualActionLoadingBar}
       {bulkActionToolbar}
       <ResourceList
         resourceName={resourceName}
@@ -367,92 +395,96 @@ export function BundleList({
           return (
             <ResourceItem
               id={id}
-              url={`/app/bundles/${encodeURIComponent(id)}`}
-              accessibilityLabel={`View details for ${title}`}
-              onClick={() => setNavigatingToBundleId(id)}
-              actions={[
-                {
-                  content: 'Duplicate',
-                  onAction: () => {
-                    handleDuplicateClick(bundle);
-                  },
-                },
-                {
-                  content: status === 'active' ? 'Deactivate' : 'Activate',
-                  onAction: () => {
-                    const newStatus = status === 'active' ? 'inactive' : 'active';
-                    onStatusToggle(id, newStatus);
-                  },
-                },
-                {
-                  content: 'Delete',
-                  destructive: true,
-                  onAction: () => {
-                    setDeletingBundle(bundle);
-                    setDeleteModalOpen(true);
-                  },
-                },
-              ]}
+              persistActions
             >
               <Box position="relative">
-                {/* Loading state - show inline spinner instead of overlay */}
-                {navigatingToBundleId === id && (
-                  <Box 
-                    position="absolute" 
-                    insetBlockStart="50%" 
-                    insetInlineEnd="16px" 
-                    style={{ transform: 'translateY(-50%)' }}
-                    zIndex="10"
-                  >
-                    <InlineStack gap="200" align="center">
-                      <Spinner size="small" />
-                    </InlineStack>
-                  </Box>
-                )}
-                
-                {/* Action loading overlay - keep this for delete/status actions */}
-                {actionLoadingIds.has(id) && (
-                  <Box 
-                    position="absolute" 
-                    insetBlockStart="0" 
-                    insetInlineStart="0" 
-                    insetBlockEnd="0" 
-                    insetInlineEnd="0" 
-                    background="bg-surface" 
-                    opacity="0.9"
-                    zIndex="1"
-                  >
-                    <Box padding="400">
-                      <InlineStack align="center">
-                        <Spinner size="small" />
-                      </InlineStack>
-                    </Box>
-                  </Box>
-                )}
-                
                 <BlockStack gap="300">
                   {/* Header with status, title and actions */}
                   <InlineStack align="space-between" blockAlign="start">
-                    <InlineStack gap="300" align="start" blockAlign="center">
-                      {/* Status on the left */}
-                      <Badge
-                        tone={status === 'active' ? 'success' : status === 'draft' ? 'info' : 'attention'}
-                        size="small"
+                    {/* Clickable content area - everything except actions */}
+                    <Box 
+                      width="calc(100% - 50px)"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        setNavigatingToBundleId(id);
+                        // Navigate programmatically
+                        window.location.href = `/app/bundles/${encodeURIComponent(id)}`;
+                      }}
+                    >
+                      <InlineStack gap="300" align="start" blockAlign="center">
+                        {/* Status on the left */}
+                        <Badge
+                          tone={status === 'active' ? 'success' : status === 'draft' ? 'info' : 'attention'}
+                          size="small"
+                        >
+                          {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
+                        </Badge>
+                        
+                        {/* Title */}
+                        <Box maxWidth="400px">
+                          <Text variant="headingMd" as="h3" fontWeight="semibold">
+                            {title}
+                          </Text>
+                        </Box>
+                      </InlineStack>
+                    </Box>
+                    
+                    {/* Actions dropdown - fixed width area */}
+                    <Box width="50px" data-actions-menu>
+                      <Popover
+                        active={activePopoverId === id}
+                        activator={
+                          <Button
+                            icon={MenuHorizontalIcon}
+                            variant="plain"
+                            onClick={() => setActivePopoverId(activePopoverId === id ? null : id)}
+                            accessibilityLabel="More actions"
+                            disabled={individualActionInProgress}
+                          />
+                        }
+                        onClose={() => setActivePopoverId(null)}
+                        preferredAlignment="right"
                       >
-                        {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
-                      </Badge>
-                      
-                      {/* Title */}
-                      <Box maxWidth="400px">
-                        <Text variant="headingMd" as="h3" fontWeight="semibold">
-                          {title}
-                        </Text>
-                      </Box>
-                    </InlineStack>
+                        <ActionList
+                          items={[
+                            {
+                              content: 'Duplicate',
+                              onAction: () => {
+                                handleDuplicateClick(bundle);
+                                setActivePopoverId(null);
+                              },
+                            },
+                            {
+                              content: status === 'active' ? 'Deactivate' : 'Activate',
+                              onAction: async () => {
+                                const newStatus = status === 'active' ? 'inactive' : 'active';
+                                await onStatusToggle(id, newStatus);
+                                setActivePopoverId(null);
+                              },
+                            },
+                            {
+                              content: 'Delete',
+                              destructive: true,
+                              onAction: () => {
+                                setDeletingBundle(bundle);
+                                setDeleteModalOpen(true);
+                                setActivePopoverId(null);
+                              },
+                            },
+                          ]}
+                        />
+                      </Popover>
+                    </Box>
                   </InlineStack>
                   
-                  {/* Key info in a subtle inline format */}
-                  <Box>
+                  {/* Key info in a subtle inline format - also clickable */}
+                  <Box 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      setNavigatingToBundleId(id);
+                      window.location.href = `/app/bundles/${encodeURIComponent(id)}`;
+                    }}
+                  >
                     <InlineStack gap="400" wrap={false}>
                       <InlineStack gap="100">
                         <Text variant="bodyMd" tone="subdued">Products:</Text>
@@ -477,12 +509,20 @@ export function BundleList({
                     </InlineStack>
                   </Box>
                   
-                  {/* Footer */}
-                  <Text variant="bodySm" tone="subdued">
-                    <span suppressHydrationWarning>
-                      Last updated {new Date(updatedAt).toLocaleDateString()}
-                    </span>
-                  </Text>
+                  {/* Footer - also clickable */}
+                  <Box 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      setNavigatingToBundleId(id);
+                      window.location.href = `/app/bundles/${encodeURIComponent(id)}`;
+                    }}
+                  >
+                    <Text variant="bodySm" tone="subdued">
+                      <span suppressHydrationWarning>
+                        Last updated {new Date(updatedAt).toLocaleDateString()}
+                      </span>
+                    </Text>
+                  </Box>
                 </BlockStack>
               </Box>
             </ResourceItem>
@@ -553,14 +593,14 @@ export function BundleList({
           content: "Delete bundle",
           destructive: true,
           onAction: handleDeleteConfirm,
-          loading: deletingBundle && actionLoadingIds.has(deletingBundle.id),
-          disabled: deletingBundle && actionLoadingIds.has(deletingBundle.id),
+          loading: individualActionInProgress,
+          disabled: individualActionInProgress,
         }}
         secondaryActions={[
           {
             content: "Cancel",
             onAction: handleDeleteCancel,
-            disabled: deletingBundle && actionLoadingIds.has(deletingBundle.id),
+            disabled: individualActionInProgress,
           },
         ]}
       >
