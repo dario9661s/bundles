@@ -8,6 +8,7 @@ import { BundleSummary } from "~/components/BundleSummary";
 import { getBundle, updateBundle, deleteBundle, duplicateBundle } from "~/services/bundle-metaobject.server";
 import type { Bundle, UpdateBundleRequest } from "~/types/bundle";
 import { useCallback, useState, useEffect } from "react";
+import "~/styles/bundle-layout.css";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);

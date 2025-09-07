@@ -1,0 +1,22 @@
+/* Ensure Layout sections have proper height for sticky positioning */
+.Polaris-Layout__Section--oneThird {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  align-self: stretch;
+}
+
+/* Remove any overflow hidden from parent containers that might affect sticky */
+.Polaris-Layout {
+  overflow: visible !important;
+}
+
+.Polaris-Page__Content {
+  overflow: visible !important;
+}
+
+/* Ensure the form section scrolls independently */
+.Polaris-Layout__Section--twoThirds {
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}

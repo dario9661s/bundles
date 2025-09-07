@@ -480,9 +480,10 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
             {/* Pricing Tab */}
             {selectedTab === 0 && (
               <Box paddingBlockStart="400">
-                <BlockStack gap="400">
-                  <FormLayout>
-                    <FormLayout.Group>
+                <Card>
+                  <BlockStack gap="400">
+                    <FormLayout>
+                      <FormLayout.Group>
                       <Select
                         label="Discount type"
                         options={discountTypeOptions}
@@ -503,6 +504,7 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                     </FormLayout.Group>
                   </FormLayout>
                 </BlockStack>
+                </Card>
               </Box>
             )}
 
@@ -532,9 +534,9 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                 <Box>
                   <RadioButton
                     label={
-                      <InlineStack gap="400" blockAlign="center">
-                        <Box width="60px" height="60px">
-                          <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <InlineStack gap="500" blockAlign="center">
+                        <Box width="100px" height="100px" style={{ flexShrink: 0 }}>
+                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             <rect x="10" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
                             <rect x="53" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
                             <rect x="10" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
@@ -565,9 +567,9 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                 <Box>
                   <RadioButton
                     label={
-                      <InlineStack gap="400" blockAlign="center">
-                        <Box width="60px" height="60px">
-                          <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <InlineStack gap="500" blockAlign="center">
+                        <Box width="100px" height="100px" style={{ flexShrink: 0 }}>
+                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             <path d="M15 50L24 41L24 59L15 50Z" fill="#8C9196" fillOpacity="0.5"/>
                             <path d="M85 50L76 59L76 41L85 50Z" fill="#8C9196" fillOpacity="0.5"/>
                             <rect x="30" y="20" width="40" height="50" rx="4" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="2"/>
@@ -597,9 +599,9 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                 <Box>
                   <RadioButton
                     label={
-                      <InlineStack gap="400" blockAlign="center">
-                        <Box width="60px" height="60px">
-                          <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <InlineStack gap="500" blockAlign="center">
+                        <Box width="100px" height="100px" style={{ flexShrink: 0 }}>
+                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             <rect x="15" y="10" width="70" height="80" rx="4" fill="#E3E5E7" fillOpacity="0.6" stroke="#8C9196" strokeOpacity="0.3" strokeWidth="1.5"/>
                             <rect x="25" y="20" width="50" height="60" rx="4" fill="#FAFBFB" stroke="#8C9196" strokeWidth="2"/>
                             <line x1="25" y1="35" x2="75" y2="35" stroke="#8C9196" strokeWidth="1.5" strokeOpacity="0.5"/>
@@ -626,9 +628,9 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
                 <Box>
                   <RadioButton
                     label={
-                      <InlineStack gap="400" blockAlign="center">
-                        <Box width="60px" height="60px">
-                          <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <InlineStack gap="500" blockAlign="center">
+                        <Box width="100px" height="100px" style={{ flexShrink: 0 }}>
+                          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
                             <rect x="20" y="10" width="60" height="35" rx="4" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1.5" strokeDasharray="3 3"/>
                             <text x="50" y="30" textAnchor="middle" fill="#8C9196" fontSize="12" fontFamily="Arial">Drop Here</text>
                             <rect x="35" y="50" width="14" height="14" rx="3" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="1.5"/>
@@ -2282,18 +2284,6 @@ export function BundleForm({ bundle, onSubmit, onCancel, isSubmitting = false, o
               </Box>
             )}
           </Tabs>
-        </Box>
-
-        {/* Form Actions */}
-        <Box paddingBlockStart="400" paddingBlockEnd="800">
-          <InlineStack align="end">
-            <ButtonGroup>
-              <Button onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
-              <Button variant="primary" submit loading={isSubmitting} disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : bundle ? "Update bundle" : "Create bundle"}
-              </Button>
-            </ButtonGroup>
-          </InlineStack>
         </Box>
       </BlockStack>
 

@@ -4,6 +4,7 @@ import { BundleForm } from "~/components/BundleForm";
 import { BundleSummary } from "~/components/BundleSummary";
 import type { CreateBundleRequest, Bundle } from "~/types/bundle";
 import { useCallback, useState } from "react";
+import "~/styles/bundle-layout.css";
 
 export default function CreateBundlePage() {
   const navigate = useNavigate();

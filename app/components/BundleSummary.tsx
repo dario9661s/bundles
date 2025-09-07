@@ -158,12 +158,12 @@ export function BundleSummary({
 
   return (
     <Box 
-      position="sticky" 
       style={{ 
         position: 'sticky', 
         top: '20px',
-        maxHeight: 'calc(100vh - 40px)',
-        overflowY: 'auto'
+        maxHeight: 'calc(100vh - 100px)',
+        overflowY: 'auto',
+        zIndex: 1
       }}
     >
       <Card>
