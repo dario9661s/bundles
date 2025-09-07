@@ -239,9 +239,15 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
 export async function listBundles(
   admin: AdminApiContext,
   page: number = 1,
-  limit: number = 20,
-  status?: "active" | "inactive" | "draft" | "all"
-): Promise<{ bundles: Bundle[]; pagination: { page: number; limit: number; total: number; hasNext: boolean } }> {
+  limit: number = 5,
+  status?: "active" | "inactive" | "draft" | "all",
+  sortBy: "status" | "title" | "updatedAt" = "updatedAt",
+  sortOrder: "asc" | "desc" = "desc"
+): Promise<{ 
+  bundles: Bundle[]; 
+  pagination: { page: number; limit: number; total: number; hasNext: boolean };
+  sorting: { sortBy: "status" | "title" | "updatedAt"; sortOrder: "asc" | "desc" };
+}> {
   const query = `
     query ListBundles($first: Int!, $after: String) {
       metaobjects(type: "${METAOBJECT_TYPE}", first: $first, after: $after) {
@@ -261,15 +267,15 @@ export async function listBundles(
     }
   `;
 
-  const skip = (page - 1) * limit;
+  // Fetch ALL bundles first to ensure proper sorting
   let allBundles: Bundle[] = [];
   let cursor: string | null = null;
   let hasMore = true;
-  let totalFetched = 0;
 
-  while (hasMore && totalFetched < skip + limit) {
+  // Keep fetching until we have ALL bundles
+  while (hasMore) {
     const variables = {
-      first: Math.min(250, skip + limit - totalFetched),
+      first: 250, // Max allowed by Shopify
       ...(cursor && { after: cursor }),
     };
 
@@ -279,18 +285,53 @@ export async function listBundles(
     const bundles = result.data.metaobjects.nodes.map(metaobjectToBundle);
     allBundles = allBundles.concat(bundles);
 
-    totalFetched += bundles.length;
     hasMore = result.data.metaobjects.pageInfo.hasNextPage;
     cursor = result.data.metaobjects.pageInfo.endCursor;
   }
+
+  console.log(`Fetched ${allBundles.length} total bundles before filtering and sorting`);
 
   if (status && status !== "all") {
     allBundles = allBundles.filter((bundle) => bundle.status === status);
   }
 
+  // Apply sorting
+  const STATUS_SORT_ORDER = ["draft", "active", "inactive"] as const;
+  
+  allBundles.sort((a, b) => {
+    let compareValue = 0;
+    
+    switch (sortBy) {
+      case "status":
+        const aIndex = STATUS_SORT_ORDER.indexOf(a.status as any);
+        const bIndex = STATUS_SORT_ORDER.indexOf(b.status as any);
+        compareValue = aIndex - bIndex;
+        break;
+      case "title":
+        compareValue = a.title.localeCompare(b.title);
+        break;
+      case "updatedAt":
+        compareValue = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+        break;
+      default:
+        compareValue = 0;
+    }
+    
+    // Apply sort order (desc reverses the comparison)
+    return sortOrder === "desc" ? -compareValue : compareValue;
+  });
+
+  console.log(`After sorting by ${sortBy} ${sortOrder}, first 3 bundles:`, 
+    allBundles.slice(0, 3).map(b => ({ title: b.title, status: b.status, updatedAt: b.updatedAt }))
+  );
+
+  // Calculate pagination AFTER sorting
+  const skip = (page - 1) * limit;
   const start = skip;
   const end = skip + limit;
   const paginatedBundles = allBundles.slice(start, end);
+
+  console.log(`Returning page ${page} with ${paginatedBundles.length} bundles (${start}-${end} of ${allBundles.length})`);
 
   return {
     bundles: paginatedBundles,
@@ -299,6 +340,10 @@ export async function listBundles(
       limit,
       total: allBundles.length,
       hasNext: end < allBundles.length,
+    },
+    sorting: {
+      sortBy,
+      sortOrder,
     },
   };
 }

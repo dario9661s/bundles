@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit, useNavigation, Link, useActionData } from "@remix-run/react";
+import { useLoaderData, useNavigate, useSubmit, useNavigation, Link, useActionData, useLocation } from "@remix-run/react";
 import { Page, Layout, Button, BlockStack, TextField, Card, Filters, ChoiceList, InlineStack, Spinner, Text, Banner, Frame, Toast, Pagination, Select, Box, ButtonGroup } from "@shopify/polaris";
 import { authenticate } from "~/shopify.server";
 import { BundleList } from "~/components/BundleList";
@@ -9,20 +9,41 @@ import type { Bundle, ListBundlesResponse, ErrorResponse, BulkDeleteBundlesRespo
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useFetcher } from "@remix-run/react";
 
+// SORT_OPTIONS from Contract 8
+const SORT_OPTIONS = [
+  { label: "Status (Draft → Active → Inactive)", value: "status", order: "asc" },
+  { label: "Status (Inactive → Active → Draft)", value: "status", order: "desc" },
+  { label: "Title (A → Z)", value: "title", order: "asc" },
+  { label: "Title (Z → A)", value: "title", order: "desc" },
+  { label: "Recently Updated", value: "updatedAt", order: "desc" },
+  { label: "Oldest Updated", value: "updatedAt", order: "asc" },
+] as const;
+
+// Status sort order from Contract 8 - CRITICAL: not alphabetical
+const STATUS_SORT_ORDER = ["draft", "active", "inactive"];
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get("page") || "1");
-  const limit = parseInt(url.searchParams.get("limit") || "20");
+  const limit = parseInt(url.searchParams.get("limit") || "5"); // Changed from 20 to 5 per Contract 8
   const status = url.searchParams.get("status") || "all";
   const search = url.searchParams.get("search") || "";
-  const sort = url.searchParams.get("sort") || "updated";
+  const sortBy = url.searchParams.get("sortBy") || "updatedAt";
+  const sortOrder = url.searchParams.get("sortOrder") || "desc";
 
   try {
-    const result = await listBundles(admin, page, limit, status === "all" ? undefined : status as any);
+    const result = await listBundles(
+      admin, 
+      page, 
+      limit, 
+      status === "all" ? undefined : status as any,
+      sortBy as "status" | "title" | "updatedAt",
+      sortOrder as "asc" | "desc"
+    );
     
-    // Apply search filter on the server side if needed
+    // Apply search filter on the frontend since backend doesn't support search yet
     let filteredBundles = result.bundles;
     if (search.trim()) {
       const searchLower = search.toLowerCase().trim();
@@ -32,31 +53,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       );
     }
     
-    // Apply sorting
-    if (sort && sort !== 'updated') {
-      filteredBundles = [...filteredBundles].sort((a, b) => {
-        switch (sort) {
-          case 'status':
-            const statusOrder = { 'active': 0, 'draft': 1, 'inactive': 2 };
-            return (statusOrder[a.status] || 3) - (statusOrder[b.status] || 3);
-          
-          case 'discount':
-            const aDiscount = a.discountType === 'percentage' ? a.discountValue : 0;
-            const bDiscount = b.discountType === 'percentage' ? b.discountValue : 0;
-            return bDiscount - aDiscount; // Highest discount first
-          
-          case 'title':
-            return a.title.localeCompare(b.title);
-          
-          default:
-            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-        }
-      });
-    }
+    // Backend already handles sorting, no need to sort again
     
     const response: ListBundlesResponse = {
       bundles: filteredBundles,
       pagination: result.pagination,
+      sorting: result.sorting, // Use sorting info from backend
     };
 
     return json(response);
@@ -140,13 +142,32 @@ export default function BundlesPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const fetcher = useFetcher<typeof loader>();
+  const location = useLocation();
+  
+  // Get URL params for initial state - safe for SSR
+  const searchParams = new URLSearchParams(location.search);
+  const urlSortBy = searchParams.get("sortBy") || "updatedAt";
+  const urlSortOrder = searchParams.get("sortOrder") || "desc";
+  const urlStatus = searchParams.get("status") || "";
+  const urlSearch = searchParams.get("search") || "";
   
   const [error, setError] = useState<string | undefined>(undefined);
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<string>('updated'); // Default sort by updated date
+  const [searchValue, setSearchValue] = useState(urlSearch);
+  const [statusFilter, setStatusFilter] = useState<string[]>(urlStatus && urlStatus !== "all" ? [urlStatus] : []);
+  // Sort state management per Contract 8 - initialized from URL params
+  const [currentSort, setCurrentSort] = useState({
+    sortBy: urlSortBy as 'status' | 'title' | 'updatedAt',
+    sortOrder: urlSortOrder as 'asc' | 'desc'
+  });
   const [isClientSide, setIsClientSide] = useState(false);
-  const [lastSearchParams, setLastSearchParams] = useState("");
+  // Initialize lastSearchParams with current URL params to prevent initial fetch
+  const initialSearchParams = new URLSearchParams();
+  if (urlSearch) initialSearchParams.set("search", urlSearch);
+  if (urlStatus && urlStatus !== "all") initialSearchParams.set("status", urlStatus);
+  initialSearchParams.set("sortBy", urlSortBy);
+  initialSearchParams.set("sortOrder", urlSortOrder);
+  initialSearchParams.set("page", "1");
+  const [lastSearchParams, setLastSearchParams] = useState(initialSearchParams.toString());
   const [toastActive, setToastActive] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastError, setToastError] = useState(false);
@@ -197,9 +218,9 @@ export default function BundlesPage() {
   useEffect(() => {
     if (!isClientSide) return; // Don't run on server side
     
-    // Only search if we have at least 2 characters or a status filter
+    // Only search if we have at least 2 characters or a status filter or sort changed
     const shouldSearch = searchValue.length >= 2 || searchValue === "";
-    if (!shouldSearch && statusFilter.length === 0 && !sortBy) return;
+    if (!shouldSearch && statusFilter.length === 0 && currentSort.sortBy === 'updatedAt' && currentSort.sortOrder === 'desc') return;
     
     const timeoutId = setTimeout(() => {
       const searchParams = new URLSearchParams();
@@ -213,21 +234,30 @@ export default function BundlesPage() {
         searchParams.set("status", statusFilter[0]);
       }
       
-      if (sortBy && sortBy !== 'updated') {
-        searchParams.set("sort", sortBy);
-      }
+      // Add sort parameters
+      searchParams.set("sortBy", currentSort.sortBy);
+      searchParams.set("sortOrder", currentSort.sortOrder);
+      
+      // Always reset to page 1 when filters/sort change
+      searchParams.set("page", "1");
       
       const newSearchParams = searchParams.toString();
       
-      // Only fetch if params actually changed
+      // Only update if params actually changed
       if (newSearchParams !== lastSearchParams) {
         setLastSearchParams(newSearchParams);
+        setCurrentPage(1); // Reset page state
+        
+        // Update URL without navigation using History API
+        window.history.replaceState({}, '', `/app/bundles?${newSearchParams}`);
+        
+        // Fetch data with the new params
         fetcher.load(`/app/bundles?${newSearchParams}`);
       }
     }, 500); // 500ms debounce for better UX
 
     return () => clearTimeout(timeoutId);
-  }, [searchValue, statusFilter, sortBy, isClientSide, lastSearchParams, fetcher]);
+  }, [searchValue, statusFilter, currentSort.sortBy, currentSort.sortOrder, isClientSide, lastSearchParams, navigate]);
 
   const handleEdit = useCallback((bundleId: string) => {
     // Encode the GID to handle forward slashes
@@ -289,7 +319,17 @@ export default function BundlesPage() {
         setToastActive(true);
         
         // Reload the current page to show the new bundle
-        fetcher.load(`/app/bundles?page=${currentPage}`);
+        const params = new URLSearchParams();
+        params.set('page', currentPage.toString());
+        params.set('sortBy', currentSort.sortBy);
+        params.set('sortOrder', currentSort.sortOrder);
+        if (statusFilter.length > 0 && !statusFilter.includes("all")) {
+          params.set("status", statusFilter[0]);
+        }
+        if (searchValue.length >= 2) {
+          params.set("search", searchValue.trim());
+        }
+        fetcher.load(`/app/bundles?${params.toString()}`);
         
         // Navigate to the new bundle after a short delay
         setTimeout(() => {
@@ -337,8 +377,18 @@ export default function BundlesPage() {
       }
       setToastActive(true);
       
-      // Reload the bundle list
-      fetcher.load(`/app/bundles?page=${currentPage}`);
+      // Reload the bundle list with current params
+      const params = new URLSearchParams();
+      params.set('page', currentPage.toString());
+      params.set('sortBy', currentSort.sortBy);
+      params.set('sortOrder', currentSort.sortOrder);
+      if (statusFilter.length > 0 && !statusFilter.includes("all")) {
+        params.set("status", statusFilter[0]);
+      }
+      if (searchValue.length >= 2) {
+        params.set("search", searchValue.trim());
+      }
+      fetcher.load(`/app/bundles?${params.toString()}`);
       
       return result;
     } catch (error) {
@@ -349,7 +399,7 @@ export default function BundlesPage() {
     } finally {
       setBulkOperationInProgress(false);
     }
-  }, [fetcher, currentPage]);
+  }, [fetcher, currentPage, currentSort.sortBy, currentSort.sortOrder, statusFilter, searchValue]);
 
   const handleBulkStatusUpdate = useCallback(async (bundleIds: string[], status: Bundle['status']): Promise<BulkStatusUpdateResponse> => {
     setBulkOperationInProgress(true);
@@ -379,8 +429,18 @@ export default function BundlesPage() {
       }
       setToastActive(true);
       
-      // Reload the bundle list
-      fetcher.load(`/app/bundles?page=${currentPage}`);
+      // Reload the bundle list with current params
+      const params = new URLSearchParams();
+      params.set('page', currentPage.toString());
+      params.set('sortBy', currentSort.sortBy);
+      params.set('sortOrder', currentSort.sortOrder);
+      if (statusFilter.length > 0 && !statusFilter.includes("all")) {
+        params.set("status", statusFilter[0]);
+      }
+      if (searchValue.length >= 2) {
+        params.set("search", searchValue.trim());
+      }
+      fetcher.load(`/app/bundles?${params.toString()}`);
       
       return result;
     } catch (error) {
@@ -391,13 +451,13 @@ export default function BundlesPage() {
     } finally {
       setBulkOperationInProgress(false);
     }
-  }, [fetcher, currentPage]);
+  }, [fetcher, currentPage, currentSort.sortBy, currentSort.sortOrder, statusFilter, searchValue]);
 
   // Clear filters handler
   const handleClearFilters = useCallback(() => {
     setSearchValue("");
     setStatusFilter([]);
-    setSortBy('updated');
+    setCurrentSort({ sortBy: 'updatedAt', sortOrder: 'desc' });
   }, []);
 
   // Get current status filter for button states
@@ -467,17 +527,23 @@ export default function BundlesPage() {
                         </ButtonGroup>
                       </BlockStack>
                     </Box>
-                    <Box width="200px">
+                    <Box width="280px">
                       <Select
                         label="Sort by"
-                        options={[
-                          { label: "Last Updated", value: "updated" },
-                          { label: "Status", value: "status" },
-                          { label: "Discount %", value: "discount" },
-                          { label: "Title", value: "title" },
-                        ]}
-                        value={sortBy}
-                        onChange={setSortBy}
+                        options={SORT_OPTIONS.map(opt => ({
+                          label: opt.label,
+                          value: `${opt.value}-${opt.order}`
+                        }))}
+                        value={`${currentSort.sortBy}-${currentSort.sortOrder}`}
+                        onChange={(value) => {
+                          const [sortBy, sortOrder] = value.split('-');
+                          setCurrentSort({
+                            sortBy: sortBy as 'status' | 'title' | 'updatedAt',
+                            sortOrder: sortOrder as 'asc' | 'desc'
+                          });
+                          // Reset to page 1 when sort changes
+                          setCurrentPage(1);
+                        }}
                       />
                     </Box>
                   </InlineStack>
@@ -516,12 +582,32 @@ export default function BundlesPage() {
                         hasPrevious={currentData.pagination.page > 1}
                         onPrevious={() => {
                           const prevPage = Math.max(1, currentData.pagination.page - 1);
-                          fetcher.load(`/app/bundles?page=${prevPage}`);
+                          const params = new URLSearchParams();
+                          params.set('page', prevPage.toString());
+                          params.set('sortBy', currentSort.sortBy);
+                          params.set('sortOrder', currentSort.sortOrder);
+                          if (statusFilter.length > 0 && !statusFilter.includes("all")) {
+                            params.set("status", statusFilter[0]);
+                          }
+                          if (searchValue.length >= 2) {
+                            params.set("search", searchValue.trim());
+                          }
+                          fetcher.load(`/app/bundles?${params.toString()}`);
                         }}
                         hasNext={currentData.pagination.hasNext}
                         onNext={() => {
                           const nextPage = currentData.pagination.page + 1;
-                          fetcher.load(`/app/bundles?page=${nextPage}`);
+                          const params = new URLSearchParams();
+                          params.set('page', nextPage.toString());
+                          params.set('sortBy', currentSort.sortBy);
+                          params.set('sortOrder', currentSort.sortOrder);
+                          if (statusFilter.length > 0 && !statusFilter.includes("all")) {
+                            params.set("status", statusFilter[0]);
+                          }
+                          if (searchValue.length >= 2) {
+                            params.set("search", searchValue.trim());
+                          }
+                          fetcher.load(`/app/bundles?${params.toString()}`);
                         }}
                       />
                     </InlineStack>

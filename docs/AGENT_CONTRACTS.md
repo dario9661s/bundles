@@ -50,8 +50,10 @@ interface BundleProduct {
 // GET /app/api/bundles
 interface ListBundlesRequest {
   page?: number // default: 1
-  limit?: number // default: 20
+  limit?: number // default: 5 (changed from 20)
   status?: "active" | "inactive" | "draft" | "all" // default: "all"
+  sortBy?: "status" | "title" | "updatedAt" // default: "updatedAt"
+  sortOrder?: "asc" | "desc" // default: "desc"
 }
 
 interface ListBundlesResponse {
@@ -61,6 +63,10 @@ interface ListBundlesResponse {
     limit: number
     total: number
     hasNext: boolean
+  }
+  sorting: {
+    sortBy: "status" | "title" | "updatedAt"
+    sortOrder: "asc" | "desc"
   }
 }
 ```
@@ -550,7 +556,42 @@ interface ValidationResult {
 
 ---
 
-## 🤝 Contract 8: Bulk Bundle Operations
+## 🤝 Contract 8: Bundle Sorting & Pagination
+
+### Special Status Sorting Order
+```typescript
+// CRITICAL: Status sorting must use this exact order (not alphabetical)
+const STATUS_SORT_ORDER = ["draft", "active", "inactive"];
+
+// When sortBy="status" and sortOrder="asc":
+// Result order: draft → active → inactive
+
+// When sortBy="status" and sortOrder="desc": 
+// Result order: inactive → active → draft
+```
+
+### Frontend Sorting Interface
+```typescript
+interface SortOption {
+  label: string
+  value: "status" | "title" | "updatedAt"
+  order: "asc" | "desc"
+}
+
+// Available sort options for dropdown
+const SORT_OPTIONS: SortOption[] = [
+  { label: "Status (Draft → Active → Inactive)", value: "status", order: "asc" },
+  { label: "Status (Inactive → Active → Draft)", value: "status", order: "desc" },
+  { label: "Title (A → Z)", value: "title", order: "asc" },
+  { label: "Title (Z → A)", value: "title", order: "desc" },
+  { label: "Recently Updated", value: "updatedAt", order: "desc" },
+  { label: "Oldest Updated", value: "updatedAt", order: "asc" },
+]
+```
+
+---
+
+## 🤝 Contract 9: Bulk Bundle Operations
 
 ### Bulk Delete Bundles
 ```typescript

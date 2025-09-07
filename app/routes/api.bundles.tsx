@@ -258,8 +258,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // List bundles
     const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "20");
+    const limit = parseInt(url.searchParams.get("limit") || "5");
     const status = url.searchParams.get("status") as ListBundlesRequest["status"];
+    const sortBy = (url.searchParams.get("sortBy") as ListBundlesRequest["sortBy"]) || "updatedAt";
+    const sortOrder = (url.searchParams.get("sortOrder") as ListBundlesRequest["sortOrder"]) || "desc";
 
     if (limit > 100) {
       return createErrorResponse(
@@ -269,11 +271,30 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       );
     }
 
-    const result = await listBundles(admin, page, limit, status);
+    // Validate sortBy parameter
+    if (!["status", "title", "updatedAt"].includes(sortBy)) {
+      return createErrorResponse(
+        "sortBy must be 'status', 'title', or 'updatedAt'",
+        "VALIDATION_ERROR",
+        400
+      );
+    }
+
+    // Validate sortOrder parameter
+    if (!["asc", "desc"].includes(sortOrder)) {
+      return createErrorResponse(
+        "sortOrder must be 'asc' or 'desc'",
+        "VALIDATION_ERROR",
+        400
+      );
+    }
+
+    const result = await listBundles(admin, page, limit, status, sortBy, sortOrder);
 
     const response: ListBundlesResponse = {
       bundles: result.bundles,
       pagination: result.pagination,
+      sorting: result.sorting,
     };
 
     return json(response);
