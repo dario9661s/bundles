@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate, useSubmit, useNavigation, Link, useActionData, useLocation } from "@remix-run/react";
-import { Page, Layout, Button, BlockStack, TextField, Card, Filters, ChoiceList, InlineStack, Spinner, Text, Banner, Frame, Toast, Pagination, Select, Box, ButtonGroup } from "@shopify/polaris";
+import { Page, Layout, Button, BlockStack, TextField, Card, Filters, ChoiceList, InlineStack, Spinner, Text, Banner, Frame, Toast, Pagination, Box, ButtonGroup } from "@shopify/polaris";
 import { authenticate } from "~/shopify.server";
 import { BundleList } from "~/components/BundleList";
 import { listBundles, deleteBundle, updateBundle } from "~/services/bundle-metaobject.server";
@@ -9,38 +9,22 @@ import type { Bundle, ListBundlesResponse, ErrorResponse, BulkDeleteBundlesRespo
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useFetcher } from "@remix-run/react";
 
-// SORT_OPTIONS from Contract 8
-const SORT_OPTIONS = [
-  { label: "Status (Draft → Active → Inactive)", value: "status", order: "asc" },
-  { label: "Status (Inactive → Active → Draft)", value: "status", order: "desc" },
-  { label: "Title (A → Z)", value: "title", order: "asc" },
-  { label: "Title (Z → A)", value: "title", order: "desc" },
-  { label: "Recently Updated", value: "updatedAt", order: "desc" },
-  { label: "Oldest Updated", value: "updatedAt", order: "asc" },
-] as const;
-
-// Status sort order from Contract 8 - CRITICAL: not alphabetical
-const STATUS_SORT_ORDER = ["draft", "active", "inactive"];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get("page") || "1");
-  const limit = parseInt(url.searchParams.get("limit") || "5"); // Changed from 20 to 5 per Contract 8
+  const limit = parseInt(url.searchParams.get("limit") || "7");
   const status = url.searchParams.get("status") || "all";
   const search = url.searchParams.get("search") || "";
-  const sortBy = url.searchParams.get("sortBy") || "updatedAt";
-  const sortOrder = url.searchParams.get("sortOrder") || "desc";
 
   try {
     const result = await listBundles(
       admin, 
       page, 
       limit, 
-      status === "all" ? undefined : status as any,
-      sortBy as "status" | "title" | "updatedAt",
-      sortOrder as "asc" | "desc"
+      status === "all" ? undefined : status as any
     );
     
     // Apply search filter on the frontend since backend doesn't support search yet
@@ -53,12 +37,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       );
     }
     
-    // Backend already handles sorting, no need to sort again
-    
     const response: ListBundlesResponse = {
       bundles: filteredBundles,
       pagination: result.pagination,
-      sorting: result.sorting, // Use sorting info from backend
     };
 
     return json(response);
@@ -66,7 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("Failed to load bundles:", error);
     return json({
       bundles: [],
-      pagination: { page: 1, limit: 20, total: 0, hasNext: false },
+      pagination: { page: 1, limit: 10, total: 0, hasNext: false },
       error: "Failed to load bundles. Please try again.",
     });
   }
@@ -146,26 +127,17 @@ export default function BundlesPage() {
   
   // Get URL params for initial state - safe for SSR
   const searchParams = new URLSearchParams(location.search);
-  const urlSortBy = searchParams.get("sortBy") || "updatedAt";
-  const urlSortOrder = searchParams.get("sortOrder") || "desc";
   const urlStatus = searchParams.get("status") || "";
   const urlSearch = searchParams.get("search") || "";
   
   const [error, setError] = useState<string | undefined>(undefined);
   const [searchValue, setSearchValue] = useState(urlSearch);
   const [statusFilter, setStatusFilter] = useState<string[]>(urlStatus && urlStatus !== "all" ? [urlStatus] : []);
-  // Sort state management per Contract 8 - initialized from URL params
-  const [currentSort, setCurrentSort] = useState({
-    sortBy: urlSortBy as 'status' | 'title' | 'updatedAt',
-    sortOrder: urlSortOrder as 'asc' | 'desc'
-  });
   const [isClientSide, setIsClientSide] = useState(false);
   // Initialize lastSearchParams with current URL params to prevent initial fetch
   const initialSearchParams = new URLSearchParams();
   if (urlSearch) initialSearchParams.set("search", urlSearch);
   if (urlStatus && urlStatus !== "all") initialSearchParams.set("status", urlStatus);
-  initialSearchParams.set("sortBy", urlSortBy);
-  initialSearchParams.set("sortOrder", urlSortOrder);
   initialSearchParams.set("page", "1");
   const [lastSearchParams, setLastSearchParams] = useState(initialSearchParams.toString());
   const [toastActive, setToastActive] = useState(false);
@@ -218,9 +190,9 @@ export default function BundlesPage() {
   useEffect(() => {
     if (!isClientSide) return; // Don't run on server side
     
-    // Only search if we have at least 2 characters or a status filter or sort changed
+    // Only search if we have at least 2 characters or a status filter
     const shouldSearch = searchValue.length >= 2 || searchValue === "";
-    if (!shouldSearch && statusFilter.length === 0 && currentSort.sortBy === 'updatedAt' && currentSort.sortOrder === 'desc') return;
+    if (!shouldSearch && statusFilter.length === 0) return;
     
     const timeoutId = setTimeout(() => {
       const searchParams = new URLSearchParams();
@@ -234,12 +206,9 @@ export default function BundlesPage() {
         searchParams.set("status", statusFilter[0]);
       }
       
-      // Add sort parameters
-      searchParams.set("sortBy", currentSort.sortBy);
-      searchParams.set("sortOrder", currentSort.sortOrder);
-      
-      // Always reset to page 1 when filters/sort change
+      // Always reset to page 1 when filters change
       searchParams.set("page", "1");
+      searchParams.set("limit", "7");
       
       const newSearchParams = searchParams.toString();
       
@@ -257,7 +226,7 @@ export default function BundlesPage() {
     }, 500); // 500ms debounce for better UX
 
     return () => clearTimeout(timeoutId);
-  }, [searchValue, statusFilter, currentSort.sortBy, currentSort.sortOrder, isClientSide, lastSearchParams, navigate]);
+  }, [searchValue, statusFilter, isClientSide, lastSearchParams, navigate]);
 
   const handleEdit = useCallback((bundleId: string) => {
     // Encode the GID to handle forward slashes
@@ -321,8 +290,7 @@ export default function BundlesPage() {
         // Reload the current page to show the new bundle
         const params = new URLSearchParams();
         params.set('page', currentPage.toString());
-        params.set('sortBy', currentSort.sortBy);
-        params.set('sortOrder', currentSort.sortOrder);
+        params.set('limit', '7');
         if (statusFilter.length > 0 && !statusFilter.includes("all")) {
           params.set("status", statusFilter[0]);
         }
@@ -380,8 +348,7 @@ export default function BundlesPage() {
       // Reload the bundle list with current params
       const params = new URLSearchParams();
       params.set('page', currentPage.toString());
-      params.set('sortBy', currentSort.sortBy);
-      params.set('sortOrder', currentSort.sortOrder);
+      params.set('limit', '10');
       if (statusFilter.length > 0 && !statusFilter.includes("all")) {
         params.set("status", statusFilter[0]);
       }
@@ -399,7 +366,7 @@ export default function BundlesPage() {
     } finally {
       setBulkOperationInProgress(false);
     }
-  }, [fetcher, currentPage, currentSort.sortBy, currentSort.sortOrder, statusFilter, searchValue]);
+  }, [fetcher, currentPage, statusFilter, searchValue]);
 
   const handleBulkStatusUpdate = useCallback(async (bundleIds: string[], status: Bundle['status']): Promise<BulkStatusUpdateResponse> => {
     setBulkOperationInProgress(true);
@@ -432,8 +399,7 @@ export default function BundlesPage() {
       // Reload the bundle list with current params
       const params = new URLSearchParams();
       params.set('page', currentPage.toString());
-      params.set('sortBy', currentSort.sortBy);
-      params.set('sortOrder', currentSort.sortOrder);
+      params.set('limit', '10');
       if (statusFilter.length > 0 && !statusFilter.includes("all")) {
         params.set("status", statusFilter[0]);
       }
@@ -451,13 +417,12 @@ export default function BundlesPage() {
     } finally {
       setBulkOperationInProgress(false);
     }
-  }, [fetcher, currentPage, currentSort.sortBy, currentSort.sortOrder, statusFilter, searchValue]);
+  }, [fetcher, currentPage, statusFilter, searchValue]);
 
   // Clear filters handler
   const handleClearFilters = useCallback(() => {
     setSearchValue("");
     setStatusFilter([]);
-    setCurrentSort({ sortBy: 'updatedAt', sortOrder: 'desc' });
   }, []);
 
   // Get current status filter for button states
@@ -527,25 +492,6 @@ export default function BundlesPage() {
                         </ButtonGroup>
                       </BlockStack>
                     </Box>
-                    <Box width="280px">
-                      <Select
-                        label="Sort by"
-                        options={SORT_OPTIONS.map(opt => ({
-                          label: opt.label,
-                          value: `${opt.value}-${opt.order}`
-                        }))}
-                        value={`${currentSort.sortBy}-${currentSort.sortOrder}`}
-                        onChange={(value) => {
-                          const [sortBy, sortOrder] = value.split('-');
-                          setCurrentSort({
-                            sortBy: sortBy as 'status' | 'title' | 'updatedAt',
-                            sortOrder: sortOrder as 'asc' | 'desc'
-                          });
-                          // Reset to page 1 when sort changes
-                          setCurrentPage(1);
-                        }}
-                      />
-                    </Box>
                   </InlineStack>
                 </BlockStack>
               </Card>
@@ -584,8 +530,7 @@ export default function BundlesPage() {
                           const prevPage = Math.max(1, currentData.pagination.page - 1);
                           const params = new URLSearchParams();
                           params.set('page', prevPage.toString());
-                          params.set('sortBy', currentSort.sortBy);
-                          params.set('sortOrder', currentSort.sortOrder);
+                          params.set('limit', '7');
                           if (statusFilter.length > 0 && !statusFilter.includes("all")) {
                             params.set("status", statusFilter[0]);
                           }
@@ -593,14 +538,14 @@ export default function BundlesPage() {
                             params.set("search", searchValue.trim());
                           }
                           fetcher.load(`/app/bundles?${params.toString()}`);
+                          setCurrentPage(prevPage);
                         }}
                         hasNext={currentData.pagination.hasNext}
                         onNext={() => {
                           const nextPage = currentData.pagination.page + 1;
                           const params = new URLSearchParams();
                           params.set('page', nextPage.toString());
-                          params.set('sortBy', currentSort.sortBy);
-                          params.set('sortOrder', currentSort.sortOrder);
+                          params.set('limit', '7');
                           if (statusFilter.length > 0 && !statusFilter.includes("all")) {
                             params.set("status", statusFilter[0]);
                           }
@@ -608,6 +553,7 @@ export default function BundlesPage() {
                             params.set("search", searchValue.trim());
                           }
                           fetcher.load(`/app/bundles?${params.toString()}`);
+                          setCurrentPage(nextPage);
                         }}
                       />
                     </InlineStack>

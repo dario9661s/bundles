@@ -80,10 +80,8 @@ export interface BundleProduct {
 // API Request/Response types
 export interface ListBundlesRequest {
   page?: number; // default: 1
-  limit?: number; // default: 5 (changed from 20)
+  limit?: number; // default: 20
   status?: "active" | "inactive" | "draft" | "all"; // default: "all"
-  sortBy?: "status" | "title" | "updatedAt"; // default: "updatedAt"
-  sortOrder?: "asc" | "desc"; // default: "desc"
 }
 
 export interface ListBundlesResponse {
@@ -93,10 +91,6 @@ export interface ListBundlesResponse {
     limit: number;
     total: number;
     hasNext: boolean;
-  };
-  sorting: {
-    sortBy: "status" | "title" | "updatedAt";
-    sortOrder: "asc" | "desc";
   };
 }
 
