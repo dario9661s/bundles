@@ -550,6 +550,93 @@ interface ValidationResult {
 
 ---
 
+## 🤝 Contract 8: Bulk Bundle Operations
+
+### Bulk Delete Bundles
+```typescript
+// POST /app/api/bundles/bulk-delete
+interface BulkDeleteBundlesRequest {
+  bundleIds: string[] // Array of bundle IDs to delete
+}
+
+interface BulkDeleteBundlesResponse {
+  success: boolean
+  results: Array<{
+    bundleId: string
+    success: boolean
+    error?: string // Only present if success is false
+  }>
+  summary: {
+    total: number
+    deleted: number
+    failed: number
+  }
+}
+```
+
+### Bulk Status Update
+```typescript
+// POST /app/api/bundles/bulk-status
+interface BulkStatusUpdateRequest {
+  bundleIds: string[] // Array of bundle IDs to update
+  status: "active" | "inactive" | "draft"
+}
+
+interface BulkStatusUpdateResponse {
+  success: boolean
+  results: Array<{
+    bundleId: string
+    success: boolean
+    newStatus?: Bundle['status']
+    error?: string // Only present if success is false
+  }>
+  summary: {
+    total: number
+    updated: number
+    failed: number
+  }
+}
+```
+
+### Frontend Bulk Operations Props
+```typescript
+// Updated BundleList Component Props for Bulk Operations
+interface BundleListProps {
+  bundles: Bundle[]
+  pagination: ListBundlesResponse['pagination']
+  onEdit: (bundleId: string) => void
+  onDelete: (bundleId: string) => Promise<void>
+  onStatusToggle: (bundleId: string, status: Bundle['status']) => Promise<void>
+  onDuplicate: (bundleId: string, title: string, status?: Bundle['status']) => Promise<void>
+  
+  // New bulk operation props
+  bulkOperationsEnabled?: boolean // Default: true
+  selectedBundleIds?: string[]
+  onSelectionChange?: (selectedIds: string[]) => void
+  onBulkDelete?: (bundleIds: string[]) => Promise<BulkDeleteBundlesResponse>
+  onBulkStatusUpdate?: (bundleIds: string[], status: Bundle['status']) => Promise<BulkStatusUpdateResponse>
+  bulkOperationInProgress?: boolean
+  loading?: boolean
+  error?: string
+  actionLoadingIds?: Set<string>
+}
+
+// Bulk operation status for UI feedback
+interface BulkOperationStatus {
+  type: 'delete' | 'status-update'
+  inProgress: boolean
+  progress?: {
+    completed: number
+    total: number
+    currentOperation?: string
+  }
+  results?: BulkDeleteBundlesResponse | BulkStatusUpdateResponse
+  error?: string
+}
+```
+
+---
+
 ## ⚠️ Contract Rules
 
 1. **NO MODIFICATIONS** without updating both agents

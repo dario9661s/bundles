@@ -532,3 +532,137 @@ export async function duplicateBundle(
     };
   }
 }
+
+export async function deleteBundles(
+  admin: AdminApiContext,
+  bundleIds: string[]
+): Promise<{
+  success: boolean;
+  results: Array<{
+    bundleId: string;
+    success: boolean;
+    error?: string;
+  }>;
+  summary: {
+    total: number;
+    deleted: number;
+    failed: number;
+  };
+}> {
+  const results: Array<{
+    bundleId: string;
+    success: boolean;
+    error?: string;
+  }> = [];
+  
+  let deleted = 0;
+  let failed = 0;
+  
+  // Process each bundle deletion
+  for (const bundleId of bundleIds) {
+    try {
+      const result = await deleteBundle(admin, bundleId);
+      
+      if (result.success) {
+        results.push({
+          bundleId,
+          success: true,
+        });
+        deleted++;
+      } else {
+        results.push({
+          bundleId,
+          success: false,
+          error: result.errors.join(", "),
+        });
+        failed++;
+      }
+    } catch (error) {
+      results.push({
+        bundleId,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      failed++;
+    }
+  }
+  
+  return {
+    success: failed === 0, // Success only if all operations succeeded
+    results,
+    summary: {
+      total: bundleIds.length,
+      deleted,
+      failed,
+    },
+  };
+}
+
+export async function updateBundleStatuses(
+  admin: AdminApiContext,
+  bundleIds: string[],
+  status: "active" | "inactive" | "draft"
+): Promise<{
+  success: boolean;
+  results: Array<{
+    bundleId: string;
+    success: boolean;
+    newStatus?: "active" | "inactive" | "draft";
+    error?: string;
+  }>;
+  summary: {
+    total: number;
+    updated: number;
+    failed: number;
+  };
+}> {
+  const results: Array<{
+    bundleId: string;
+    success: boolean;
+    newStatus?: "active" | "inactive" | "draft";
+    error?: string;
+  }> = [];
+  
+  let updated = 0;
+  let failed = 0;
+  
+  // Process each bundle status update
+  for (const bundleId of bundleIds) {
+    try {
+      const result = await updateBundle(admin, bundleId, { status });
+      
+      if (result.bundle) {
+        results.push({
+          bundleId,
+          success: true,
+          newStatus: result.bundle.status,
+        });
+        updated++;
+      } else {
+        results.push({
+          bundleId,
+          success: false,
+          error: result.errors.join(", "),
+        });
+        failed++;
+      }
+    } catch (error) {
+      results.push({
+        bundleId,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      failed++;
+    }
+  }
+  
+  return {
+    success: failed === 0, // Success only if all operations succeeded
+    results,
+    summary: {
+      total: bundleIds.length,
+      updated,
+      failed,
+    },
+  };
+}

@@ -147,6 +147,45 @@ export interface DuplicateBundleResponse {
   bundle: Bundle;
 }
 
+// Bulk operation types
+export interface BulkDeleteBundlesRequest {
+  bundleIds: string[]; // Array of bundle IDs to delete
+}
+
+export interface BulkDeleteBundlesResponse {
+  success: boolean;
+  results: Array<{
+    bundleId: string;
+    success: boolean;
+    error?: string; // Only present if success is false
+  }>;
+  summary: {
+    total: number;
+    deleted: number;
+    failed: number;
+  };
+}
+
+export interface BulkStatusUpdateRequest {
+  bundleIds: string[]; // Array of bundle IDs to update
+  status: "active" | "inactive" | "draft";
+}
+
+export interface BulkStatusUpdateResponse {
+  success: boolean;
+  results: Array<{
+    bundleId: string;
+    success: boolean;
+    newStatus?: Bundle['status'];
+    error?: string; // Only present if success is false
+  }>;
+  summary: {
+    total: number;
+    updated: number;
+    failed: number;
+  };
+}
+
 // Error handling types
 export interface ErrorResponse {
   error: true;

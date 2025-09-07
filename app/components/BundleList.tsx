@@ -18,9 +18,12 @@ import {
   InlineStack,
   Popover,
   ActionList,
+  Checkbox,
+  ButtonGroup,
+  ProgressBar,
 } from "@shopify/polaris";
 import { MenuHorizontalIcon } from "@shopify/polaris-icons";
-import type { Bundle } from "~/types/bundle";
+import type { Bundle, BulkDeleteBundlesResponse, BulkStatusUpdateResponse } from "~/types/bundle";
 
 interface BundleListProps {
   bundles: Bundle[];
@@ -34,6 +37,15 @@ interface BundleListProps {
   onDelete: (bundleId: string) => Promise<void>;
   onDuplicate: (bundleId: string, title: string, status?: "active" | "draft") => Promise<void>;
   onStatusToggle: (bundleId: string, status: Bundle['status']) => Promise<void>;
+  
+  // New bulk operation props per Contract 8
+  bulkOperationsEnabled?: boolean; // Default: true
+  selectedBundleIds?: string[];
+  onSelectionChange?: (selectedIds: string[]) => void;
+  onBulkDelete?: (bundleIds: string[]) => Promise<BulkDeleteBundlesResponse>;
+  onBulkStatusUpdate?: (bundleIds: string[], status: Bundle['status']) => Promise<BulkStatusUpdateResponse>;
+  bulkOperationInProgress?: boolean;
+  
   loading?: boolean;
   error?: string;
   actionLoadingIds?: Set<string>;
@@ -46,6 +58,15 @@ export function BundleList({
   onDelete,
   onDuplicate,
   onStatusToggle,
+  
+  // Bulk operation props
+  bulkOperationsEnabled = true,
+  selectedBundleIds = [],
+  onSelectionChange,
+  onBulkDelete,
+  onBulkStatusUpdate,
+  bulkOperationInProgress = false,
+  
   loading = false,
   error,
   actionLoadingIds = new Set(),
@@ -60,6 +81,13 @@ export function BundleList({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingBundle, setDeletingBundle] = useState<Bundle | null>(null);
   const [navigatingToBundleId, setNavigatingToBundleId] = useState<string | null>(null);
+  
+  // Bulk operations state
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+  const [bulkStatusModalOpen, setBulkStatusModalOpen] = useState(false);
+  const [bulkNewStatus, setBulkNewStatus] = useState<Bundle['status']>('active');
+  const [bulkOperationResult, setBulkOperationResult] = useState<BulkDeleteBundlesResponse | BulkStatusUpdateResponse | null>(null);
+  const [showBulkResultModal, setShowBulkResultModal] = useState(false);
 
   const handleDuplicateClick = useCallback((bundle: Bundle) => {
     setDuplicatingBundleId(bundle.id);
@@ -136,6 +164,73 @@ export function BundleList({
     setDeletingBundle(null);
   }, []);
 
+  // Bulk operation handlers
+  const handleSelectAll = useCallback(() => {
+    if (!onSelectionChange) return;
+    
+    const allIds = bundles.map(b => b.id);
+    const isAllSelected = selectedBundleIds.length === bundles.length && 
+      selectedBundleIds.every(id => allIds.includes(id));
+    
+    onSelectionChange(isAllSelected ? [] : allIds);
+  }, [bundles, selectedBundleIds, onSelectionChange]);
+
+  const handleItemSelection = useCallback((bundleId: string, selected: boolean) => {
+    if (!onSelectionChange) return;
+    
+    if (selected) {
+      onSelectionChange([...selectedBundleIds, bundleId]);
+    } else {
+      onSelectionChange(selectedBundleIds.filter(id => id !== bundleId));
+    }
+  }, [selectedBundleIds, onSelectionChange]);
+
+  const handleBulkDeleteClick = useCallback(() => {
+    if (selectedBundleIds.length === 0) return;
+    setBulkDeleteModalOpen(true);
+  }, [selectedBundleIds]);
+
+  const handleBulkDeleteConfirm = useCallback(async () => {
+    if (!onBulkDelete || selectedBundleIds.length === 0) return;
+    
+    try {
+      const result = await onBulkDelete(selectedBundleIds);
+      setBulkOperationResult(result);
+      setBulkDeleteModalOpen(false);
+      setShowBulkResultModal(true);
+      
+      // Clear selection after successful operation
+      if (onSelectionChange) {
+        onSelectionChange([]);
+      }
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+    }
+  }, [onBulkDelete, selectedBundleIds, onSelectionChange]);
+
+  const handleBulkStatusClick = useCallback(() => {
+    if (selectedBundleIds.length === 0) return;
+    setBulkStatusModalOpen(true);
+  }, [selectedBundleIds]);
+
+  const handleBulkStatusConfirm = useCallback(async () => {
+    if (!onBulkStatusUpdate || selectedBundleIds.length === 0) return;
+    
+    try {
+      const result = await onBulkStatusUpdate(selectedBundleIds, bulkNewStatus);
+      setBulkOperationResult(result);
+      setBulkStatusModalOpen(false);
+      setShowBulkResultModal(true);
+      
+      // Clear selection after successful operation
+      if (onSelectionChange) {
+        onSelectionChange([]);
+      }
+    } catch (error) {
+      console.error('Bulk status update error:', error);
+    }
+  }, [onBulkStatusUpdate, selectedBundleIds, bulkNewStatus, onSelectionChange]);
+
   if (loading && bundles.length === 0) {
     // Show skeleton loading state with placeholder items
     const placeholderItems = Array.from({ length: 3 }, (_, index) => ({
@@ -201,11 +296,62 @@ export function BundleList({
     </EmptyState>
   );
 
+  // Bulk action toolbar component
+  const bulkActionToolbar = bulkOperationsEnabled && selectedBundleIds.length > 0 && (
+    <Box paddingBlockStart="400" paddingBlockEnd="400" paddingInlineStart="400" paddingInlineEnd="400">
+      <InlineStack align="space-between" blockAlign="center">
+        <Text variant="bodySm" tone="subdued">
+          {selectedBundleIds.length} bundle{selectedBundleIds.length === 1 ? '' : 's'} selected
+        </Text>
+        <ButtonGroup>
+          <Button
+            size="medium"
+            onClick={handleBulkStatusClick}
+            disabled={bulkOperationInProgress}
+            loading={bulkOperationInProgress}
+          >
+            Change Status
+          </Button>
+          <Button
+            size="medium"
+            variant="primary"
+            tone="critical"
+            onClick={handleBulkDeleteClick}
+            disabled={bulkOperationInProgress}
+            loading={bulkOperationInProgress}
+          >
+            Delete Selected
+          </Button>
+        </ButtonGroup>
+      </InlineStack>
+      {bulkOperationInProgress && (
+        <Box paddingBlockStart="200">
+          <ProgressBar progress={75} size="small" />
+          <Text variant="bodySm" tone="subdued" alignment="center">
+            Processing bulk operation...
+          </Text>
+        </Box>
+      )}
+    </Box>
+  );
+
   return (
     <Card>
+      {bulkActionToolbar}
       <ResourceList
         resourceName={resourceName}
         items={bundles}
+        selectable={bulkOperationsEnabled}
+        selectedItems={bulkOperationsEnabled ? selectedBundleIds : undefined}
+        onSelectionChange={bulkOperationsEnabled ? (selection) => {
+          if (onSelectionChange) {
+            if (selection === 'all') {
+              handleSelectAll();
+            } else {
+              onSelectionChange(selection as string[]);
+            }
+          }
+        } : undefined}
         renderItem={(bundle) => {
           const { id, handle, title, status, discountType, discountValue, steps, updatedAt } = bundle;
 
@@ -420,6 +566,135 @@ export function BundleList({
       >
         <Modal.Section>
           <p>Are you sure you want to delete "{deletingBundle?.title}"? This action cannot be undone.</p>
+        </Modal.Section>
+      </Modal>
+      
+      {/* Bulk Delete Confirmation Modal */}
+      <Modal
+        open={bulkDeleteModalOpen}
+        onClose={() => setBulkDeleteModalOpen(false)}
+        title="Delete Selected Bundles"
+        primaryAction={{
+          content: `Delete ${selectedBundleIds.length} bundle${selectedBundleIds.length === 1 ? '' : 's'}`,
+          destructive: true,
+          onAction: handleBulkDeleteConfirm,
+          loading: bulkOperationInProgress,
+          disabled: bulkOperationInProgress,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: () => setBulkDeleteModalOpen(false),
+            disabled: bulkOperationInProgress,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            Are you sure you want to delete {selectedBundleIds.length} selected bundle{selectedBundleIds.length === 1 ? '' : 's'}? 
+            This action cannot be undone.
+          </Text>
+        </Modal.Section>
+      </Modal>
+
+      {/* Bulk Status Update Modal */}
+      <Modal
+        open={bulkStatusModalOpen}
+        onClose={() => setBulkStatusModalOpen(false)}
+        title="Change Status of Selected Bundles"
+        primaryAction={{
+          content: `Update ${selectedBundleIds.length} bundle${selectedBundleIds.length === 1 ? '' : 's'}`,
+          onAction: handleBulkStatusConfirm,
+          loading: bulkOperationInProgress,
+          disabled: bulkOperationInProgress,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: () => setBulkStatusModalOpen(false),
+            disabled: bulkOperationInProgress,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <FormLayout>
+            <Select
+              label="New status"
+              options={[
+                { label: "Active", value: "active" },
+                { label: "Inactive", value: "inactive" },
+                { label: "Draft", value: "draft" },
+              ]}
+              value={bulkNewStatus}
+              onChange={(value) => setBulkNewStatus(value as Bundle['status'])}
+              disabled={bulkOperationInProgress}
+            />
+            <Text as="p" tone="subdued">
+              This will update the status of {selectedBundleIds.length} selected bundle{selectedBundleIds.length === 1 ? '' : 's'}.
+            </Text>
+          </FormLayout>
+        </Modal.Section>
+      </Modal>
+
+      {/* Bulk Operation Results Modal */}
+      <Modal
+        open={showBulkResultModal}
+        onClose={() => setShowBulkResultModal(false)}
+        title="Operation Results"
+        primaryAction={{
+          content: "Close",
+          onAction: () => {
+            setShowBulkResultModal(false);
+            setBulkOperationResult(null);
+          },
+        }}
+      >
+        <Modal.Section>
+          {bulkOperationResult && (
+            <BlockStack gap="300">
+              <Text variant="headingSm" as="h3">
+                {'summary' in bulkOperationResult && 'deleted' in bulkOperationResult.summary
+                  ? `Delete Operation Complete`
+                  : `Status Update Operation Complete`}
+              </Text>
+              
+              <InlineStack gap="600">
+                <Box>
+                  <Text variant="bodySm" tone="subdued">Total</Text>
+                  <Text variant="headingMd" as="p">{bulkOperationResult.summary.total}</Text>
+                </Box>
+                <Box>
+                  <Text variant="bodySm" tone="subdued">
+                    {'deleted' in bulkOperationResult.summary ? 'Deleted' : 'Updated'}
+                  </Text>
+                  <Text variant="headingMd" as="p" tone="success">
+                    {'deleted' in bulkOperationResult.summary 
+                      ? bulkOperationResult.summary.deleted 
+                      : bulkOperationResult.summary.updated}
+                  </Text>
+                </Box>
+                <Box>
+                  <Text variant="bodySm" tone="subdued">Failed</Text>
+                  <Text variant="headingMd" as="p" tone={bulkOperationResult.summary.failed > 0 ? "critical" : undefined}>
+                    {bulkOperationResult.summary.failed}
+                  </Text>
+                </Box>
+              </InlineStack>
+              
+              {bulkOperationResult.summary.failed > 0 && (
+                <Box>
+                  <Text variant="headingSm" as="h4">Failed Operations:</Text>
+                  {bulkOperationResult.results
+                    .filter(r => !r.success)
+                    .map((result, index) => (
+                      <Text key={index} variant="bodySm" tone="critical">
+                        Bundle {result.bundleId}: {result.error}
+                      </Text>
+                    ))}
+                </Box>
+              )}
+            </BlockStack>
+          )}
         </Modal.Section>
       </Modal>
     </Card>

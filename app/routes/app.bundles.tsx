@@ -5,7 +5,7 @@ import { Page, Layout, Button, BlockStack, TextField, Card, Filters, ChoiceList,
 import { authenticate } from "~/shopify.server";
 import { BundleList } from "~/components/BundleList";
 import { listBundles, deleteBundle, updateBundle } from "~/services/bundle-metaobject.server";
-import type { Bundle, ListBundlesResponse, ErrorResponse } from "~/types/bundle";
+import type { Bundle, ListBundlesResponse, ErrorResponse, BulkDeleteBundlesResponse, BulkStatusUpdateResponse } from "~/types/bundle";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useFetcher } from "@remix-run/react";
 
@@ -94,6 +94,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
+
     return json({ 
       success: false,
       error: "Invalid action",
@@ -127,6 +128,10 @@ export default function BundlesPage() {
   const [toastError, setToastError] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [actionBundleIds, setActionBundleIds] = useState<Set<string>>(new Set());
+  
+  // Bulk operations state
+  const [selectedBundleIds, setSelectedBundleIds] = useState<string[]>([]);
+  const [bulkOperationInProgress, setBulkOperationInProgress] = useState(false);
   
   const isLoading = navigation.state !== "idle";
   const isSearching = fetcher.state !== "idle";
@@ -272,6 +277,91 @@ export default function BundlesPage() {
     }
   }, [navigate, fetcher, currentPage]);
 
+  // Bulk operation handlers
+  const handleBulkDelete = useCallback(async (bundleIds: string[]): Promise<BulkDeleteBundlesResponse> => {
+    setBulkOperationInProgress(true);
+    
+    try {
+      const response = await fetch('/api/bundles/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bundleIds }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to delete bundles');
+      }
+      
+      // Show success/failure toast
+      if (result.success) {
+        setToastMessage(`${result.summary.deleted} bundle${result.summary.deleted === 1 ? '' : 's'} deleted successfully`);
+        setToastError(false);
+      } else {
+        setToastMessage(`${result.summary.failed} bundle${result.summary.failed === 1 ? '' : 's'} failed to delete`);
+        setToastError(true);
+      }
+      setToastActive(true);
+      
+      // Reload the bundle list
+      fetcher.load(`/app/bundles?page=${currentPage}`);
+      
+      return result;
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : "Failed to delete bundles");
+      setToastError(true);
+      setToastActive(true);
+      throw error;
+    } finally {
+      setBulkOperationInProgress(false);
+    }
+  }, [fetcher, currentPage]);
+
+  const handleBulkStatusUpdate = useCallback(async (bundleIds: string[], status: Bundle['status']): Promise<BulkStatusUpdateResponse> => {
+    setBulkOperationInProgress(true);
+    
+    try {
+      const response = await fetch('/api/bundles/bulk-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bundleIds, status }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to update bundle statuses');
+      }
+      
+      // Show success/failure toast
+      if (result.success) {
+        setToastMessage(`${result.summary.updated} bundle${result.summary.updated === 1 ? '' : 's'} updated successfully`);
+        setToastError(false);
+      } else {
+        setToastMessage(`${result.summary.failed} bundle${result.summary.failed === 1 ? '' : 's'} failed to update`);
+        setToastError(true);
+      }
+      setToastActive(true);
+      
+      // Reload the bundle list
+      fetcher.load(`/app/bundles?page=${currentPage}`);
+      
+      return result;
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : "Failed to update bundle statuses");
+      setToastError(true);
+      setToastActive(true);
+      throw error;
+    } finally {
+      setBulkOperationInProgress(false);
+    }
+  }, [fetcher, currentPage]);
+
   // Clear filters handler
   const handleClearFilters = useCallback(() => {
     setSearchValue("");
@@ -319,14 +409,15 @@ export default function BundlesPage() {
   }
 
   return (
-    <Page
-      title="Product Bundles"
-      primaryAction={{
-        content: "Create bundle",
-        url: "/app/bundles/create",
-      }}
-    >
-      <Layout>
+    <Frame>
+      <Page
+        title="Product Bundles"
+        primaryAction={{
+          content: "Create bundle",
+          url: "/app/bundles/create",
+        }}
+      >
+        <Layout>
         <Layout.Section>
           <BlockStack gap="400">
             {/* Search and Filters - only show after hydration */}
@@ -369,6 +460,15 @@ export default function BundlesPage() {
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
                   onStatusToggle={handleStatusToggle}
+                  
+                  // Bulk operations
+                  bulkOperationsEnabled={true}
+                  selectedBundleIds={selectedBundleIds}
+                  onSelectionChange={setSelectedBundleIds}
+                  onBulkDelete={handleBulkDelete}
+                  onBulkStatusUpdate={handleBulkStatusUpdate}
+                  bulkOperationInProgress={bulkOperationInProgress}
+                  
                   loading={isLoading || isSearching}
                   error={error}
                   actionLoadingIds={actionBundleIds}
@@ -408,5 +508,6 @@ export default function BundlesPage() {
         />
       )}
     </Page>
+    </Frame>
   );
 }
