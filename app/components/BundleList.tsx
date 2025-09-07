@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useNavigate } from "@remix-run/react";
 import {
   Badge,
   Card,
@@ -71,6 +72,7 @@ export function BundleList({
   loading = false,
   error,
 }: BundleListProps) {
+  const navigate = useNavigate();
   
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [duplicatingBundleId, setDuplicatingBundleId] = useState<string | null>(null);
@@ -397,40 +399,37 @@ export function BundleList({
               id={id}
               persistActions
             >
-              <Box position="relative">
+              <Box 
+                position="relative" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => {
+                  setNavigatingToBundleId(id);
+                  // Navigate using React Router
+                  navigate(`/app/bundles/${encodeURIComponent(id)}`);
+                }}
+              >
                 <BlockStack gap="300">
                   {/* Header with status, title and actions */}
                   <InlineStack align="space-between" blockAlign="start">
-                    {/* Clickable content area - everything except actions */}
-                    <Box 
-                      width="calc(100% - 50px)"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setNavigatingToBundleId(id);
-                        // Navigate programmatically
-                        window.location.href = `/app/bundles/${encodeURIComponent(id)}`;
-                      }}
-                    >
-                      <InlineStack gap="300" align="start" blockAlign="center">
-                        {/* Status on the left */}
-                        <Badge
-                          tone={status === 'active' ? 'success' : status === 'draft' ? 'info' : 'attention'}
-                          size="small"
-                        >
-                          {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
-                        </Badge>
-                        
-                        {/* Title */}
-                        <Box maxWidth="400px">
-                          <Text variant="headingMd" as="h3" fontWeight="semibold">
-                            {title}
-                          </Text>
-                        </Box>
-                      </InlineStack>
-                    </Box>
+                    <InlineStack gap="300" align="start" blockAlign="center">
+                      {/* Status on the left */}
+                      <Badge
+                        tone={status === 'active' ? 'success' : status === 'draft' ? 'info' : 'attention'}
+                        size="small"
+                      >
+                        {status === 'active' ? 'Active' : status === 'draft' ? 'Draft' : 'Inactive'}
+                      </Badge>
+                      
+                      {/* Title */}
+                      <Box maxWidth="400px">
+                        <Text variant="headingMd" as="h3" fontWeight="semibold">
+                          {title}
+                        </Text>
+                      </Box>
+                    </InlineStack>
                     
-                    {/* Actions dropdown - fixed width area */}
-                    <Box width="50px" data-actions-menu>
+                    {/* Actions dropdown - stop propagation to prevent navigation */}
+                    <Box onClick={(e) => e.stopPropagation()}>
                       <Popover
                         active={activePopoverId === id}
                         activator={
@@ -477,14 +476,8 @@ export function BundleList({
                     </Box>
                   </InlineStack>
                   
-                  {/* Key info in a subtle inline format - also clickable */}
-                  <Box 
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      setNavigatingToBundleId(id);
-                      window.location.href = `/app/bundles/${encodeURIComponent(id)}`;
-                    }}
-                  >
+                  {/* Key info in a subtle inline format */}
+                  <Box>
                     <InlineStack gap="400" wrap={false}>
                       <InlineStack gap="100">
                         <Text variant="bodyMd" tone="subdued">Products:</Text>
@@ -509,14 +502,8 @@ export function BundleList({
                     </InlineStack>
                   </Box>
                   
-                  {/* Footer - also clickable */}
-                  <Box 
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      setNavigatingToBundleId(id);
-                      window.location.href = `/app/bundles/${encodeURIComponent(id)}`;
-                    }}
-                  >
+                  {/* Footer */}
+                  <Box>
                     <Text variant="bodySm" tone="subdued">
                       <span suppressHydrationWarning>
                         Last updated {new Date(updatedAt).toLocaleDateString()}
