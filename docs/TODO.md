@@ -72,6 +72,75 @@ Building bundle app like Biscuits - focusing on ~40 core features that matter.
 - [ ] Add real-time price calculation
 - [ ] Add combination image functionality - users upload images in app dashboard for each combination of products (2, 3, or more) and it displays in store when those specific products are selected together
 
+#### Backend Agent Prompt:
+```
+Implement Combination Images functionality according to Contract 10 in AGENT_CONTRACTS.md.
+
+Tasks:
+1. Create new metaobject definition "bundle_combination" with fields:
+   - products (list of product references)
+   - image (file reference)
+   - title (single line text, optional)
+
+2. Update existing bundle metaobject to add:
+   - combination_images (list of metaobject references to bundle_combination)
+
+3. Create API endpoints as specified in Contract 10:
+   - GET /app/api/bundles/:bundleId/combinations
+   - POST /app/api/bundles/:bundleId/combinations (handle base64 image upload to Shopify Files API)
+   - PUT /app/api/bundles/:bundleId/combinations/:combinationId
+   - DELETE /app/api/bundles/:bundleId/combinations/:combinationId
+
+4. Update storefront bundle endpoint to include combinations for theme display
+
+5. Implement efficient matching logic using sorted product IDs
+
+Important: Follow the exact types and field names in Contract 10. Test with multiple combinations across different steps.
+```
+
+#### Frontend Agent Prompt:
+```
+Implement Combination Images tab in Bundle Form according to Contract 10 in AGENT_CONTRACTS.md.
+
+Tasks:
+1. Add "Combination Images" tab after "Steps" tab in BundleForm component
+
+2. Create CombinationImagesTab component that:
+   - Shows all products from bundle steps organized by 2-product, 3-product sections
+   - Generates possible combinations dynamically
+   - Allows image upload for each combination
+   - Shows preview of uploaded images
+   - Handles delete/update operations
+
+3. Create CombinationPicker component for selecting products
+   - Multi-select from all bundle products
+   - Shows which step each product comes from
+   - Minimum 2 products required
+
+4. Use Shopify Polaris components:
+   - DropZone for image uploads
+   - ResourceList for displaying combinations
+   - Modal for add/edit flows
+
+5. Convert images to base64 before sending to API
+
+Important: Follow exact props and interfaces in Contract 10. Tab should be intuitive - users select products, upload image, save.
+```
+
+#### Theme Agent Prompt (for later):
+```
+Implement combination image display in theme blocks.
+
+When customers select products in the bundle:
+1. Get all selected product IDs
+2. Sort them for consistent matching
+3. Find matching combination using the findCombinationImage function
+4. Display the combination image if found
+5. Fall back to default product images if no match
+
+Use the combinations data from StorefrontBundleWithCombinations response.
+```
+
 ---
 
 ## 📋 Phase 4: Admin Interface

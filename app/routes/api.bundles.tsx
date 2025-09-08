@@ -41,10 +41,12 @@ function validateLayoutSettings(layoutSettings: any, layoutType: string): string
   
   // Ensure only settings for the active layout type are present
   const allowedSettings = {
+    basic: 'basicSettings',
     grid: 'gridSettings',
     slider: 'sliderSettings',
     modal: 'modalSettings',
     selection: 'selectionSettings',
+    stepper: 'stepperSettings',
   };
   
   const expectedSetting = allowedSettings[layoutType as keyof typeof allowedSettings];
@@ -126,6 +128,56 @@ function validateLayoutSettings(layoutSettings: any, layoutType: string): string
     }
   }
   
+  if (layoutType === 'basic' && layoutSettings.basicSettings) {
+    const basic = layoutSettings.basicSettings;
+    if (!['left', 'right'].includes(basic.imagePosition)) {
+      errors.push('Basic image position must be "left" or "right"');
+    }
+    if (!['square', 'portrait', 'landscape'].includes(basic.imageAspectRatio)) {
+      errors.push('Basic image aspect ratio must be "square", "portrait", or "landscape"');
+    }
+    if (!['zoom', 'lightbox', 'none'].includes(basic.imageBehavior)) {
+      errors.push('Basic image behavior must be "zoom", "lightbox", or "none"');
+    }
+    if (!['thumbnails', 'dots', 'none'].includes(basic.imageGalleryType)) {
+      errors.push('Basic image gallery type must be "thumbnails", "dots", or "none"');
+    }
+    if (!['narrow', 'medium', 'wide'].includes(basic.contentWidth)) {
+      errors.push('Basic content width must be "narrow", "medium", or "wide"');
+    }
+    if (!['stacked', 'horizontal'].includes(basic.mobileLayout)) {
+      errors.push('Basic mobile layout must be "stacked" or "horizontal"');
+    }
+    if (typeof basic.showProgressBar !== 'boolean') {
+      errors.push('Basic show progress bar must be a boolean');
+    }
+    if (!['slide', 'fade', 'none'].includes(basic.stepTransition)) {
+      errors.push('Basic step transition must be "slide", "fade", or "none"');
+    }
+  }
+  
+  if (layoutType === 'stepper' && layoutSettings.stepperSettings) {
+    const stepper = layoutSettings.stepperSettings;
+    if (typeof stepper.showProgressBar !== 'boolean') {
+      errors.push('Stepper show progress bar must be a boolean');
+    }
+    if (!['top', 'bottom'].includes(stepper.progressBarPosition)) {
+      errors.push('Stepper progress bar position must be "top" or "bottom"');
+    }
+    if (typeof stepper.allowBackNavigation !== 'boolean') {
+      errors.push('Stepper allow back navigation must be a boolean');
+    }
+    if (!['summary', 'auto-add', 'redirect'].includes(stepper.completionBehavior)) {
+      errors.push('Stepper completion behavior must be "summary", "auto-add", or "redirect"');
+    }
+    if (typeof stepper.showStepNumbers !== 'boolean') {
+      errors.push('Stepper show step numbers must be a boolean');
+    }
+    if (!['slide', 'fade', 'none'].includes(stepper.animationStyle)) {
+      errors.push('Stepper animation style must be "slide", "fade", or "none"');
+    }
+  }
+  
   return errors;
 }
 
@@ -148,8 +200,8 @@ function validateBundleData(data: any): string[] {
     errors.push("Discount value must be a non-negative number");
   }
 
-  if (!["grid", "slider", "modal", "selection"].includes(data.layoutType)) {
-    errors.push("Layout type must be 'grid', 'slider', 'modal', or 'selection'");
+  if (!["basic", "modal", "selection", "stepper"].includes(data.layoutType)) {
+    errors.push("Layout type must be 'basic', 'modal', 'selection', or 'stepper'");
   }
 
   if (

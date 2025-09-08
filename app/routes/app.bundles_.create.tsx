@@ -23,7 +23,7 @@ export default function CreateBundlePage() {
   }>({
     title: '',
     status: 'draft',
-    layoutType: 'grid',
+    layoutType: 'basic',
     discountType: 'percentage',
     discountValue: 0,
     steps: [],

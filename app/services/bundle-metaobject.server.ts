@@ -149,6 +149,7 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
     createdAt: new Date().toISOString(), // Metaobjects don't have timestamps
     updatedAt: new Date().toISOString(), // Metaobjects don't have timestamps
     layoutSettings,
+    combinationImages: fields.combination_images || [],
   };
 }
 
@@ -183,6 +184,9 @@ function bundleToFields(bundle: Partial<Bundle>): Array<{ key: string; value: st
   // if (bundle.layoutSettings !== undefined) {
   //   fields.push({ key: "layout_settings", value: JSON.stringify(bundle.layoutSettings) });
   // }
+  if (bundle.combinationImages !== undefined) {
+    fields.push({ key: "combination_images", value: JSON.stringify(bundle.combinationImages) });
+  }
 
   return fields;
 }
@@ -217,6 +221,7 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
               { key: "desktop_columns", type: "single_line_text_field", name: "Desktop Columns", required: true }
               { key: "steps", type: "json", name: "Steps", required: true }
               { key: "layout_settings", type: "json", name: "Layout Settings", required: false }
+              { key: "combination_images", type: "list.metaobject_reference", name: "Combination Images", required: false }
             ]
           }
         ) {

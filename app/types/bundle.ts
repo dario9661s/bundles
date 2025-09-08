@@ -2,6 +2,18 @@
 
 // Layout-specific settings from Contract 7
 export interface LayoutSettings {
+  // Basic layout settings
+  basicSettings?: {
+    imagePosition: "left" | "right"; // Default: "left"
+    imageAspectRatio: "square" | "portrait" | "landscape"; // Default: "square"
+    imageBehavior: "zoom" | "lightbox" | "none"; // Default: "zoom"
+    imageGalleryType: "thumbnails" | "dots" | "none"; // Default: "thumbnails"
+    contentWidth: "narrow" | "medium" | "wide"; // Default: "medium"
+    mobileLayout: "stacked" | "horizontal"; // Default: "stacked"
+    showProgressBar: boolean; // Default: true
+    stepTransition: "slide" | "fade" | "none"; // Default: "slide"
+  };
+  
   // Grid-specific settings
   gridSettings?: {
     productsPerRow: {
@@ -61,13 +73,14 @@ export interface Bundle {
   status: "active" | "inactive" | "draft";
   discountType: "percentage" | "fixed" | "total";
   discountValue: number;
-  layoutType: "grid" | "slider" | "modal" | "selection" | "stepper";
+  layoutType: "basic" | "modal" | "selection" | "stepper";
   mobileColumns: number; // 1-4
   desktopColumns: number; // 1-6
   steps: BundleStep[];
   createdAt: string; // ISO date
   updatedAt: string; // ISO date
   layoutSettings?: LayoutSettings; // Added per Contract 7
+  combinationImages?: string[]; // Added per Contract 10 - Array of metaobject IDs
 }
 
 export interface BundleStep {
@@ -113,7 +126,7 @@ export interface CreateBundleRequest {
   status: "active" | "draft";
   discountType: "percentage" | "fixed" | "total";
   discountValue: number;
-  layoutType: "grid" | "slider" | "modal" | "selection" | "stepper";
+  layoutType: "basic" | "modal" | "selection" | "stepper";
   mobileColumns: number;
   desktopColumns: number;
   layoutSettings?: LayoutSettings; // Added per Contract 7

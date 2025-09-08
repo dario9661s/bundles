@@ -116,32 +116,26 @@ export function BundleSummary({
     };
 
     switch (layoutType) {
-      case 'grid':
+      case 'basic':
         return (
           <svg {...svgProps}>
-            <rect x="10" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
-            <rect x="53" y="10" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
-            <rect x="10" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
-            <rect x="53" y="53" width="37" height="37" rx="4" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
-            <rect x="16" y="16" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
-            <rect x="59" y="16" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
-            <rect x="16" y="59" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
-            <rect x="59" y="59" width="25" height="18" rx="2" fill="#8C9196" fillOpacity="0.3"/>
-          </svg>
-        );
-      
-      case 'slider':
-        return (
-          <svg {...svgProps}>
-            <path d="M15 50L24 41L24 59L15 50Z" fill="#8C9196" fillOpacity="0.5"/>
-            <path d="M85 50L76 59L76 41L85 50Z" fill="#8C9196" fillOpacity="0.5"/>
-            <rect x="30" y="20" width="40" height="50" rx="4" fill="#8C9196" fillOpacity="0.3" stroke="#8C9196" strokeWidth="2"/>
-            <rect x="5" y="30" width="22" height="30" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1"/>
-            <rect x="73" y="30" width="22" height="30" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1"/>
-            <rect x="35" y="25" width="30" height="22" rx="2" fill="#8C9196" fillOpacity="0.4"/>
-            <circle cx="40" cy="82" r="2.5" fill="#8C9196" fillOpacity="0.3"/>
-            <circle cx="50" cy="82" r="3" fill="#8C9196" fillOpacity="0.8"/>
-            <circle cx="60" cy="82" r="2.5" fill="#8C9196" fillOpacity="0.3"/>
+            {/* Left side - image placeholder */}
+            <rect x="10" y="20" width="35" height="60" rx="3" fill="#8C9196" fillOpacity="0.2" stroke="#8C9196" strokeWidth="1.5"/>
+            <rect x="15" y="25" width="25" height="35" rx="2" fill="#8C9196" fillOpacity="0.3"/>
+            <rect x="15" y="65" width="25" height="3" rx="1.5" fill="#8C9196" fillOpacity="0.5"/>
+            <rect x="15" y="71" width="18" height="2" rx="1" fill="#8C9196" fillOpacity="0.4"/>
+            
+            {/* Right side - bundle products */}
+            <rect x="52" y="20" width="38" height="60" rx="3" fill="#8C9196" fillOpacity="0.1" stroke="#8C9196" strokeWidth="1.2" strokeDasharray="3 2"/>
+            
+            {/* Product items */}
+            <rect x="57" y="25" width="28" height="8" rx="1.5" fill="#8C9196" fillOpacity="0.3"/>
+            <rect x="57" y="36" width="28" height="8" rx="1.5" fill="#8C9196" fillOpacity="0.3"/>
+            <rect x="57" y="47" width="28" height="8" rx="1.5" fill="#8C9196" fillOpacity="0.3"/>
+            
+            {/* Add to cart button */}
+            <rect x="57" y="65" width="28" height="10" rx="2" fill="#00AA5E" fillOpacity="0.8"/>
+            <text x="71" y="72" textAnchor="middle" fill="#FFFFFF" fontSize="6" fontWeight="bold" fontFamily="Arial">Add</text>
           </svg>
         );
       
@@ -214,8 +208,7 @@ export function BundleSummary({
 
   const formatLayoutType = () => {
     switch (layoutType) {
-      case 'grid': return 'Grid';
-      case 'slider': return 'Slider';
+      case 'basic': return 'Basic';
       case 'modal': return 'Modal';
       case 'selection': return 'Selection';
       case 'stepper': return 'Stepper';
