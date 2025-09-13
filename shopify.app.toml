@@ -3,7 +3,7 @@
 client_id = "bd5bad85ad477b8cbb9036bd6d7da30d"
 name = "Bundles Adsgun"
 handle = "bundles-adsgun"
-application_url = "https://christmas-nz-experiment-lawn.trycloudflare.com"
+application_url = "https://devel-ma-reasonable-roses.trycloudflare.com"
 embedded = true
 
 [build]
@@ -35,9 +35,9 @@ scopes = "read_cart_transforms,read_products,write_cart_transforms,write_product
 
 [auth]
 redirect_urls = [
-  "https://christmas-nz-experiment-lawn.trycloudflare.com/auth/callback",
-  "https://christmas-nz-experiment-lawn.trycloudflare.com/auth/shopify/callback",
-  "https://christmas-nz-experiment-lawn.trycloudflare.com/api/auth/callback"
+  "https://devel-ma-reasonable-roses.trycloudflare.com/auth/callback",
+  "https://devel-ma-reasonable-roses.trycloudflare.com/auth/shopify/callback",
+  "https://devel-ma-reasonable-roses.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

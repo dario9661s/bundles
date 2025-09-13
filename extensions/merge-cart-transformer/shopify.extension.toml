@@ -3,6 +3,7 @@ api_version = "2025-07"
 [[extensions]]
 name = "t:name"
 handle = "merge-cart-transformer"
+uid = "056856ed-2f55-d46d-dc99-9cfa5cfc41064253db85"
 type = "function"
 
 description = "t:description"

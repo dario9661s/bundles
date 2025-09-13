@@ -33,13 +33,15 @@ interface BundleStep {
   minSelections: number
   maxSelections?: number // null = unlimited
   required: boolean
+  selectionType: "product" | "variant" // NEW: Choose product or variant selection
   products: BundleProduct[]
 }
 
 interface BundleProduct {
-  id: string // Shopify GID
+  id: string // Shopify Product GID
   position: number
-  // Frontend will fetch product details separately
+  variantId?: string // NEW: Optional - only used when step selectionType is "variant"
+  // Frontend will fetch product/variant details separately
 }
 ```
 
@@ -165,11 +167,15 @@ interface ProductSearchResponse {
     variantsCount: number
     // Basic variant info for immediate display needs
     variants: Array<{
-      id: string // Shopify GID
+      id: string // Shopify Variant GID
       title: string
       price: string // Money format
       availableForSale: boolean
       image?: string // Variant specific image if different from product
+      selectedOptions: Array<{
+        name: string // e.g., "Size", "Color"
+        value: string // e.g., "Medium", "Blue"
+      }>
     }>
   }>
 }
@@ -826,6 +832,63 @@ interface CombinationPickerProps {
   maxProducts?: number // Default: unlimited
 }
 ```
+
+---
+
+## 🤝 Contract 11: Product/Variant Selection Support
+
+### Step Configuration
+```typescript
+// Updated step creation/update to support selection type
+interface StepConfiguration {
+  // Existing fields...
+  selectionType: "product" | "variant" // Required field
+  // When selectionType is "variant", products array can include variantId
+}
+```
+
+### Enhanced Product Picker
+```typescript
+// Frontend component needs to handle both modes
+interface ProductPickerProps {
+  selectedProducts: Array<{
+    id: string // Product GID
+    variantId?: string // Variant GID when in variant mode
+  }>
+  selectionType: "product" | "variant"
+  onSelect: (selections: Array<{id: string, variantId?: string}>) => void
+  maxSelections?: number
+}
+```
+
+### Price Calculation Updates
+```typescript
+// POST /app/api/bundles/calculate-price
+interface CalculatePriceRequest {
+  bundleId: string
+  selectedProducts: Array<{
+    stepId: string
+    // Now supports both product-only and variant selections
+    selections: Array<{
+      productId: string
+      variantId?: string // Include when step is variant type
+    }>
+  }>
+}
+```
+
+### Cart Transform Updates
+The cart transform needs to:
+1. Check step's selectionType
+2. Match on variantId when selectionType is "variant"
+3. Match on productId when selectionType is "product"
+4. Handle mixed bundles (some steps product, some variant)
+
+### UI Behavior
+1. **Product Mode**: Shows products, uses default/cheapest variant for pricing
+2. **Variant Mode**: Shows products with variant selector (dropdown/swatches)
+3. **Toggle Switch**: In step configuration, merchant chooses selection type
+4. **Migration**: Existing bundles default to "product" selection type
 
 ---
 

@@ -135,6 +135,12 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
   const layoutType = fields.layout_type || "grid";
   const layoutSettings = fields.layout_settings || getDefaultLayoutSettings(layoutType);
 
+  // Ensure backward compatibility for steps - default selectionType to "product"
+  const steps = (fields.steps || []).map((step: any) => ({
+    ...step,
+    selectionType: step.selectionType || "product", // Default to "product" for backward compatibility
+  }));
+
   return {
     id: metaobject.id,
     handle: metaobject.handle,
@@ -145,7 +151,7 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
     layoutType,
     mobileColumns: parseInt(fields.mobile_columns) || 2,
     desktopColumns: parseInt(fields.desktop_columns) || 4,
-    steps: fields.steps || [],
+    steps,
     createdAt: new Date().toISOString(), // Metaobjects don't have timestamps
     updatedAt: new Date().toISOString(), // Metaobjects don't have timestamps
     layoutSettings,

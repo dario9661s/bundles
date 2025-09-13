@@ -28,10 +28,16 @@ export interface FormStep extends Omit<BundleStep, 'id'> {
   products: Array<{
     id: string;
     position: number;
-    // Product details for display
+    variantId?: string; // For variant selection type
+    // Product/variant details for display
     title?: string;
     featuredImage?: string;
     price?: string;
+    variantTitle?: string; // e.g., "Medium / Blue"
+    selectedOptions?: Array<{
+      name: string;
+      value: string;
+    }>;
   }>;
   // Layout properties for each step
   displayType?: 'grid' | 'list' | 'carousel';
@@ -94,6 +100,40 @@ export interface DragState {
 export interface ProductPickerState {
   stepId: string | null;
   isOpen: boolean;
+}
+
+// Combination Images types
+export interface BundleCombination {
+  id: string;
+  products: string[];
+  imageUrl: string;
+  imageId: string;
+  title?: string;
+}
+
+export interface CombinationImagesTabProps {
+  bundleId: string;
+  steps: FormStep[];
+  layoutType?: string;
+  onCombinationsChange?: (combinations: Array<{
+    productIds: string[];
+    imageBase64: string;
+    title?: string;
+  }>) => void;
+}
+
+export interface CombinationPickerProps {
+  availableProducts: Array<{
+    id: string;
+    title: string;
+    stepTitle: string;
+    stepPosition: number;
+    featuredImage?: string;
+  }>;
+  onSelect: (productIds: string[]) => void;
+  onClose: () => void;
+  minProducts?: number;
+  maxProducts?: number;
 }
 
 // Validation error types

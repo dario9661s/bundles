@@ -17,6 +17,7 @@ import {
   Select,
   Icon,
   Thumbnail,
+  ButtonGroup,
 } from "@shopify/polaris";
 import { DeleteIcon, SearchIcon, DragHandleIcon, CheckIcon } from "@shopify/polaris-icons";
 import type { BundleStepManagerProps, FormStep, DragState } from "./BundleFormTypes";
@@ -91,6 +92,7 @@ export function BundleStepManager({
       minSelections: 1,
       maxSelections: 5,
       required: false,
+      selectionType: 'product', // Default to product selection
       products: [],
       displayType: 'grid',
       mobileColumns: 2,
@@ -228,8 +230,15 @@ export function BundleStepManager({
                 <Text variant="bodyMd" fontWeight="medium" alignment="center" truncate>
                   {details?.title || "Loading..."}
                 </Text>
+                {product.variantTitle && (
+                  <Text variant="bodySm" fontWeight="medium" tone="subdued" alignment="center">
+                    {product.variantTitle}
+                  </Text>
+                )}
                 <Text variant="bodySm" tone="subdued" alignment="center">
-                  {details?.priceRange ? (
+                  {product.price ? (
+                    `$${product.price}`
+                  ) : details?.priceRange ? (
                     <>
                       ${details.priceRange.min}
                       {details.priceRange.max !== details.priceRange.min && ` - $${details.priceRange.max}`}
@@ -401,6 +410,45 @@ export function BundleStepManager({
                           <BlockStack gap="400">
                             <Text variant="headingSm" as="h4">Selection Rules</Text>
                             <FormLayout>
+                              <BlockStack gap="200">
+                                <Text variant="bodyMd" as="p">Selection type</Text>
+                                <ButtonGroup variant="segmented">
+                                  <Button
+                                    pressed={step.selectionType === "product" || !step.selectionType}
+                                    onClick={() => {
+                                      if (step.selectionType !== "product") {
+                                        // Reset products when switching type
+                                        handleUpdateStep(index, { 
+                                          selectionType: "product",
+                                          products: [] 
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Products
+                                  </Button>
+                                  <Button
+                                    pressed={step.selectionType === "variant"}
+                                    onClick={() => {
+                                      if (step.selectionType !== "variant") {
+                                        // Reset products when switching type
+                                        handleUpdateStep(index, { 
+                                          selectionType: "variant",
+                                          products: [] 
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Variants
+                                  </Button>
+                                </ButtonGroup>
+                                <Text variant="bodySm" tone="subdued">
+                                  {step.selectionType === "variant" 
+                                    ? "Customers will choose specific variants (size, color, etc.)" 
+                                    : "Customers will choose products (variants selected at checkout)"}
+                                </Text>
+                              </BlockStack>
+                              
                               <FormLayout.Group>
                                 <TextField
                                   label="Minimum selections"
@@ -444,14 +492,14 @@ export function BundleStepManager({
                           <BlockStack gap="300">
                             <InlineStack align="space-between">
                               <Text variant="bodyMd" as="p">
-                                Products ({step.products.length} selected)
+                                {step.selectionType === 'variant' ? 'Variants' : 'Products'} ({step.products.length} selected)
                               </Text>
                               <Button
                                 onClick={() => setShowProductPicker(step.id)}
                                 icon={SearchIcon}
                                 size="slim"
                               >
-                                Select products
+                                Select {step.selectionType === 'variant' ? 'variants' : 'products'}
                               </Button>
                             </InlineStack>
 
@@ -601,6 +649,12 @@ export function BundleStepManager({
       {showProductPicker && (
         <ProductPicker
           selectedProducts={steps.find((s) => s.id === showProductPicker)?.products.map(p => p.id) || []}
+          selectedVariants={
+            steps.find((s) => s.id === showProductPicker)?.selectionType === 'variant' 
+              ? steps.find((s) => s.id === showProductPicker)?.products.map(p => ({ productId: p.id, variantId: p.variantId || '' })) || []
+              : []
+          }
+          selectionType={steps.find((s) => s.id === showProductPicker)?.selectionType || 'product'}
           onSelect={async (productIds) => {
             const stepIndex = steps.findIndex((s) => s.id === showProductPicker);
             if (stepIndex !== -1) {
@@ -611,6 +665,24 @@ export function BundleStepManager({
                 products: productIds.map((id, index) => ({
                   id,
                   position: index + 1,
+                })),
+              });
+            }
+            setShowProductPicker(null);
+          }}
+          onSelectVariants={async (selections) => {
+            const stepIndex = steps.findIndex((s) => s.id === showProductPicker);
+            if (stepIndex !== -1) {
+              // Fetch details for newly selected products
+              await fetchProductDetails(selections.map(s => s.productId));
+
+              handleUpdateStep(stepIndex, {
+                products: selections.map((selection, index) => ({
+                  id: selection.productId,
+                  variantId: selection.variantId,
+                  position: index + 1,
+                  variantTitle: selection.variantTitle,
+                  price: selection.price,
                 })),
               });
             }

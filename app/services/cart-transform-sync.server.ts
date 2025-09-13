@@ -10,8 +10,10 @@ interface CartTransformBundle {
   discountValue: number;
   steps: Array<{
     id: string;
+    selectionType: "product" | "variant"; // NEW: Support variant selection
     products: Array<{
-      id: string;
+      id: string; // Product GID
+      variantId?: string; // NEW: Optional variant GID for variant selection
     }>;
   }>;
 }
@@ -39,8 +41,10 @@ export async function syncBundlesToCartTransform(admin: AdminApiContext, shop: s
       discountValue: bundle.discountValue,
       steps: bundle.steps.map((step) => ({
         id: step.id,
+        selectionType: step.selectionType || "product", // Default to "product" for backward compatibility
         products: step.products.map((product) => ({
           id: product.id,
+          variantId: product.variantId, // Include variantId if present
         })),
       })),
     }));

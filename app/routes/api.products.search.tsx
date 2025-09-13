@@ -62,7 +62,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 currencyCode
               }
             }
-            variants(first: 3) {
+            variants(first: 10) {
               nodes {
                 id
                 title
@@ -70,6 +70,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 availableForSale
                 image {
                   url
+                }
+                selectedOptions {
+                  name
+                  value
                 }
               }
             }
@@ -99,7 +103,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 currencyCode
               }
             }
-            variants(first: 3) {
+            variants(first: 10) {
               nodes {
                 id
                 title
@@ -107,6 +111,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 availableForSale
                 image {
                   url
+                }
+                selectedOptions {
+                  name
+                  value
                 }
               }
             }
@@ -157,12 +165,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         max: product.priceRangeV2.maxVariantPrice.amount
       },
       variantsCount: product.variants.nodes.length,
-      variants: product.variants.nodes.slice(0, 3).map((variant: any) => ({ // Ensure max 3 variants
+      variants: product.variants.nodes.map((variant: any) => ({
         id: variant.id,
         title: variant.title,
         price: variant.price,
         availableForSale: variant.availableForSale,
-        image: variant.image?.url || null
+        image: variant.image?.url || null,
+        selectedOptions: variant.selectedOptions || []
       }))
     }));
 

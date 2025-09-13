@@ -15,13 +15,25 @@ import {
   Tag,
   InlineStack,
   Button,
+  Checkbox,
+  Collapsible,
+  Badge,
+  Divider,
 } from "@shopify/polaris";
-import { SearchIcon } from "@shopify/polaris-icons";
+import { SearchIcon, ChevronDownIcon, ChevronUpIcon } from "@shopify/polaris-icons";
 import type { ProductSearchResponse } from "~/types/bundle";
 
 interface ProductPickerProps {
   selectedProducts: string[];
-  onSelect: (productIds: string[]) => void;
+  selectedVariants?: Array<{ productId: string; variantId: string }>;
+  selectionType?: "product" | "variant";
+  onSelect?: (productIds: string[]) => void;
+  onSelectVariants?: (selections: Array<{
+    productId: string;
+    variantId: string;
+    variantTitle: string;
+    price: string;
+  }>) => void;
   onClose: () => void;
   maxSelections?: number;
 }
@@ -45,16 +57,27 @@ interface Product {
     price: string;
     availableForSale: boolean;
     image?: string;
+    selectedOptions?: Array<{
+      name: string;
+      value: string;
+    }>;
   }>;
 }
 
 export function ProductPicker({
   selectedProducts: initialSelected,
+  selectedVariants,
+  selectionType = "product",
   onSelect,
+  onSelectVariants,
   onClose,
   maxSelections,
 }: ProductPickerProps) {
   const [selectedProducts, setSelectedProducts] = useState<string[]>(initialSelected);
+  const [selectedProductVariants, setSelectedProductVariants] = useState<
+    Array<{ productId: string; variantId: string }>
+  >(selectedVariants || []);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -124,20 +147,66 @@ export function ProductPicker({
   });
 
   const handleToggleProduct = useCallback((productId: string) => {
-    setSelectedProducts((current) => {
-      if (current.includes(productId)) {
-        return current.filter(id => id !== productId);
+    if (selectionType === "product") {
+      setSelectedProducts((current) => {
+        if (current.includes(productId)) {
+          return current.filter(id => id !== productId);
+        } else {
+          if (maxSelections && current.length >= maxSelections) {
+            return current;
+          }
+          return [...current, productId];
+        }
+      });
+    } else {
+      // For variant selection, toggle product expansion
+      setExpandedProducts(current => {
+        const newSet = new Set(current);
+        if (newSet.has(productId)) {
+          newSet.delete(productId);
+        } else {
+          newSet.add(productId);
+        }
+        return newSet;
+      });
+    }
+  }, [maxSelections, selectionType]);
+
+  const handleToggleVariant = useCallback((productId: string, variantId: string) => {
+    setSelectedProductVariants(current => {
+      const existingIndex = current.findIndex(
+        s => s.productId === productId && s.variantId === variantId
+      );
+      if (existingIndex >= 0) {
+        // Remove variant
+        return current.filter((_, index) => index !== existingIndex);
       } else {
         if (maxSelections && current.length >= maxSelections) {
           return current;
         }
-        return [...current, productId];
+        // Add variant
+        return [...current, { productId, variantId }];
       }
     });
   }, [maxSelections]);
 
   const handleSave = () => {
-    onSelect(selectedProducts);
+    if (selectionType === "product" && onSelect) {
+      onSelect(selectedProducts);
+    } else if (selectionType === "variant" && onSelectVariants) {
+      // Get variant details for selected variants
+      const selections = selectedProductVariants.map(({ productId, variantId }) => {
+        const product = products.find(p => p.id === productId);
+        const variant = product?.variants.find(v => v.id === variantId);
+        return {
+          productId,
+          variantId,
+          variantTitle: variant?.title || "",
+          price: variant?.price || "0",
+        };
+      });
+      onSelectVariants(selections);
+    }
     onClose();
   };
 
@@ -228,9 +297,11 @@ export function ProductPicker({
     <Modal
       open
       onClose={onClose}
-      title="Select Products"
+      title={selectionType === "variant" ? "Select Product Variants" : "Select Products"}
       primaryAction={{
-        content: `Select ${selectedProducts.length} product${selectedProducts.length !== 1 ? 's' : ''}`,
+        content: selectionType === "variant" 
+          ? `Select ${selectedProductVariants.length} variant${selectedProductVariants.length !== 1 ? 's' : ''}`
+          : `Select ${selectedProducts.length} product${selectedProducts.length !== 1 ? 's' : ''}`,
         onAction: handleSave,
       }}
       secondaryActions={[
@@ -290,6 +361,11 @@ export function ProductPicker({
               items={filteredProducts}
               renderItem={(product) => {
                 const isSelected = selectedProducts.includes(product.id);
+                // In variant mode, always expand products
+                const isExpanded = selectionType === "variant" ? true : expandedProducts.has(product.id);
+                const selectedVariantsCount = selectedProductVariants.filter(
+                  v => v.productId === product.id
+                ).length;
                 const isDisabled = !isSelected && maxSelections !== undefined && selectedProducts.length >= maxSelections;
                 
                 return (
@@ -303,14 +379,20 @@ export function ProductPicker({
                       />
                     }
                     onClick={() => !isDisabled && handleToggleProduct(product.id)}
-                    disabled={isDisabled}
+                    disabled={isDisabled && selectionType === "product"}
                   >
                     <BlockStack gap="100">
                       <InlineStack align="space-between">
                         <Text variant="bodyMd" fontWeight="semibold">
                           {product.title}
                         </Text>
-                        {isSelected && <Tag>Selected</Tag>}
+                        {selectionType === "product" ? (
+                          isSelected && <Tag>Selected</Tag>
+                        ) : (
+                          selectedVariantsCount > 0 && (
+                            <Badge tone="success">{selectedVariantsCount} selected</Badge>
+                          )
+                        )}
                       </InlineStack>
                       
                       <InlineStack gap="200">
@@ -337,7 +419,55 @@ export function ProductPicker({
                       </InlineStack>
                       
                       {!product.availableForSale && (
-                        <Badge status="critical">Unavailable</Badge>
+                        <Badge tone="critical">Unavailable</Badge>
+                      )}
+                      
+                      {/* Variant selection mode */}
+                      {selectionType === "variant" && (
+                        <>
+                          <Collapsible open={true} id={`variants-${product.id}`}>
+                            <Box paddingBlockStart="200">
+                              <Divider />
+                              <Box paddingBlockStart="300">
+                                <BlockStack gap="200">
+                                  {product.variants.map((variant) => {
+                                    const isVariantSelected = selectedProductVariants.some(
+                                      v => v.productId === product.id && v.variantId === variant.id
+                                    );
+                                    const isVariantDisabled = !isVariantSelected && 
+                                      maxSelections !== undefined && 
+                                      selectedProductVariants.length >= maxSelections;
+                                    
+                                    return (
+                                      <Box 
+                                        key={variant.id} 
+                                        paddingInlineStart="400"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <InlineStack align="space-between" blockAlign="center">
+                                          <BlockStack gap="050">
+                                            <Text variant="bodyMd">{variant.title}</Text>
+                                            <Text variant="bodySm" tone="subdued">
+                                              ${variant.price}
+                                            </Text>
+                                          </BlockStack>
+                                          <Checkbox
+                                            label=""
+                                            checked={isVariantSelected}
+                                            disabled={isVariantDisabled}
+                                            onChange={() => {
+                                              handleToggleVariant(product.id, variant.id);
+                                            }}
+                                          />
+                                        </InlineStack>
+                                      </Box>
+                                    );
+                                  })}
+                                </BlockStack>
+                              </Box>
+                            </Box>
+                          </Collapsible>
+                        </>
                       )}
                     </BlockStack>
                   </ResourceItem>

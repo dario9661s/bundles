@@ -91,13 +91,15 @@ export interface BundleStep {
   minSelections: number;
   maxSelections?: number; // null = unlimited
   required: boolean;
+  selectionType: "product" | "variant"; // NEW: Choose product or variant selection
   products: BundleProduct[];
 }
 
 export interface BundleProduct {
-  id: string; // Shopify GID
+  id: string; // Shopify Product GID
   position: number;
-  // Frontend will fetch product details separately
+  variantId?: string; // NEW: Optional - only used when step selectionType is "variant"
+  // Frontend will fetch product/variant details separately
 }
 
 // API Request/Response types
@@ -137,11 +139,18 @@ export interface CreateBundleRequest {
     minSelections: number;
     maxSelections?: number;
     required: boolean;
+    selectionType: "product" | "variant"; // NEW: Required field
     products: Array<{
-      id: string; // Shopify GID
+      id: string; // Shopify Product GID
       position: number;
+      variantId?: string; // NEW: Optional - only used when selectionType is "variant"
     }>;
   }>;
+  combinations?: Array<{
+    productIds: string[];
+    imageBase64: string;
+    title?: string;
+  }>; // Added per Contract 10
 }
 
 export interface CreateBundleResponse {
@@ -225,6 +234,29 @@ export type ErrorCode =
   | "DUPLICATE_BUNDLE"
   | "LIMIT_EXCEEDED";
 
+// Price calculation types - updated for Contract 11
+export interface CalculatePriceRequest {
+  bundleId: string;
+  selectedProducts: Array<{
+    stepId: string;
+    // Now supports both product-only and variant selections
+    selections: Array<{
+      productId: string;
+      variantId?: string; // Include when step is variant type
+    }>;
+  }>;
+}
+
+export interface CalculatePriceResponse {
+  originalPrice: number;
+  discountAmount: number;
+  finalPrice: number;
+  savings: {
+    amount: number;
+    percentage: number;
+  };
+}
+
 // Product search types
 export interface ProductSearchRequest {
   query?: string;
@@ -247,11 +279,15 @@ export interface ProductSearchResponse {
     variantsCount: number;
     // Basic variant info for immediate display needs
     variants: Array<{
-      id: string; // Shopify GID
+      id: string; // Shopify Variant GID
       title: string;
       price: string; // Money format
       availableForSale: boolean;
       image?: string; // Variant specific image if different from product
+      selectedOptions: Array<{
+        name: string; // e.g., "Size", "Color"
+        value: string; // e.g., "Medium", "Blue"
+      }>;
     }>;
   }>;
 }

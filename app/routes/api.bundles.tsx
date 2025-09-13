@@ -8,6 +8,10 @@ import {
   updateBundle,
   deleteBundle,
 } from "~/services/bundle-metaobject.server";
+import {
+  createCombination,
+  ensureCombinationDefinitionExists,
+} from "~/services/bundle-combination.server";
 import type {
   ListBundlesRequest,
   ListBundlesResponse,
@@ -250,6 +254,10 @@ function validateBundleData(data: any): string[] {
         errors.push(`Step ${index + 1}: Required must be a boolean`);
       }
 
+      if (step.selectionType && !["product", "variant"].includes(step.selectionType)) {
+        errors.push(`Step ${index + 1}: Selection type must be 'product' or 'variant'`);
+      }
+
       if (!Array.isArray(step.products)) {
         errors.push(`Step ${index + 1}: Products must be an array`);
       } else {
@@ -263,6 +271,13 @@ function validateBundleData(data: any): string[] {
               `Step ${index + 1}, Product ${productIndex + 1}: Position must be a number`
             );
           }
+
+          // Validate variantId when selectionType is "variant"
+          if (step.selectionType === "variant" && !product.variantId) {
+            errors.push(
+              `Step ${index + 1}, Product ${productIndex + 1}: Variant ID is required when selection type is 'variant'`
+            );
+          }
         });
       }
     });
@@ -274,6 +289,29 @@ function validateBundleData(data: any): string[] {
     errors.push(...layoutSettingsErrors);
   }
 
+  // Validate combinations if provided
+  if (data.combinations) {
+    if (!Array.isArray(data.combinations)) {
+      errors.push("Combinations must be an array");
+    } else {
+      data.combinations.forEach((combo: any, index: number) => {
+        if (!combo.productIds || !Array.isArray(combo.productIds)) {
+          errors.push(`Combination ${index + 1}: productIds must be an array`);
+        } else if (combo.productIds.length < 2) {
+          errors.push(`Combination ${index + 1}: must have at least 2 products`);
+        }
+        
+        if (!combo.imageBase64 || typeof combo.imageBase64 !== "string") {
+          errors.push(`Combination ${index + 1}: imageBase64 is required and must be a string`);
+        }
+        
+        if (combo.title && typeof combo.title !== "string") {
+          errors.push(`Combination ${index + 1}: title must be a string`);
+        }
+      });
+    }
+  }
+
   return errors;
 }
 
@@ -281,6 +319,7 @@ function generateStepIds(steps: any[]): any[] {
   return steps.map((step, index) => ({
     ...step,
     id: `step_${Date.now()}_${index}`,
+    selectionType: step.selectionType || "product", // Default to "product" for backward compatibility
   }));
 }
 
@@ -482,6 +521,91 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
+      // Handle combination images if provided
+      if (data.combinations && Array.isArray(data.combinations) && data.combinations.length > 0) {
+        const failedCombinations: string[] = [];
+        const createdCombinationIds: string[] = [];
+        
+        // Ensure combination metaobject definition exists
+        try {
+          await ensureCombinationDefinitionExists(admin);
+        } catch (error) {
+          console.error("Failed to ensure combination definition exists:", error);
+          // Clean up by deleting the bundle
+          await deleteBundle(admin, result.bundle.id);
+          return createErrorResponse(
+            "Failed to initialize combination images feature",
+            "INTERNAL_ERROR",
+            500
+          );
+        }
+        
+        for (const combo of data.combinations) {
+          try {
+            // Validate combination data
+            if (!combo.productIds || !Array.isArray(combo.productIds) || combo.productIds.length < 2) {
+              failedCombinations.push(`Invalid combination: requires at least 2 products`);
+              continue;
+            }
+            
+            if (!combo.imageBase64 || typeof combo.imageBase64 !== "string") {
+              failedCombinations.push(`Invalid combination: missing image data`);
+              continue;
+            }
+            
+            // Create combination using service function
+            const combinationResult = await createCombination(
+              admin,
+              combo.productIds,
+              combo.imageBase64,
+              combo.title
+            );
+
+            if (!combinationResult.combination) {
+              console.error(`Failed to create combination:`, combinationResult.errors);
+              failedCombinations.push(combo.title || `Combination with ${combo.productIds.length} products`);
+            } else {
+              createdCombinationIds.push(combinationResult.combination.id);
+            }
+          } catch (error) {
+            console.error("Error creating combination:", error);
+            failedCombinations.push(combo.title || `Combination with ${combo.productIds.length} products`);
+          }
+        }
+
+        // If any combinations failed, delete the bundle and return error
+        if (failedCombinations.length > 0) {
+          // Clean up by deleting the bundle
+          try {
+            await deleteBundle(admin, result.bundle.id);
+          } catch (cleanupError) {
+            console.error("Failed to clean up bundle after combination creation failure:", cleanupError);
+          }
+          
+          return createErrorResponse(
+            `Failed to create combinations: ${failedCombinations.join(", ")}`,
+            "INTERNAL_ERROR",
+            500,
+            { failedCombinations }
+          );
+        }
+        
+        // Update bundle with combination references
+        if (createdCombinationIds.length > 0) {
+          try {
+            const updateResult = await updateBundle(admin, result.bundle.id, {
+              combinationImages: createdCombinationIds,
+            });
+            
+            if (updateResult.bundle) {
+              result.bundle = updateResult.bundle;
+            }
+          } catch (error) {
+            console.error("Failed to update bundle with combination references:", error);
+            // Don't fail the whole operation, combinations were created successfully
+          }
+        }
+      }
 
       return json({ bundle: result.bundle }, { status: 201 });
     }

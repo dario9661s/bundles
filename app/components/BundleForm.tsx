@@ -13,6 +13,7 @@ import { BundleDetailsForm } from "./bundle-form/BundleDetailsForm";
 import { BundleDiscountSettings } from "./bundle-form/BundleDiscountSettings";
 import { BundleLayoutSettings } from "./bundle-form/BundleLayoutSettings";
 import { BundleStepManager } from "./bundle-form/BundleStepManager";
+import { CombinationImagesTab } from "./bundle-form/CombinationImagesTab";
 import { 
   validateBundleForm, 
   filterErrorsByTouched, 
@@ -28,6 +29,11 @@ export function BundleForm({
 }: BundleFormProps) {
   const [selectedTab, setSelectedTab] = useState(0);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [pendingCombinations, setPendingCombinations] = useState<Array<{
+    productIds: string[];
+    imageBase64: string;
+    title?: string;
+  }>>([]);
   
   // Form data state
   const [formData, setFormData] = useState<BundleFormData>({
@@ -113,6 +119,7 @@ export function BundleForm({
           minSelections: 1,
           maxSelections: 5,
           required: true,
+          selectionType: 'product' as const, // Default to product selection
           products: [],
           displayType: 'grid',
           mobileColumns: 2,
@@ -268,13 +275,23 @@ export function BundleForm({
         minSelections: step.minSelections,
         maxSelections: step.maxSelections || undefined,
         required: step.required,
-        products: step.products,
+        selectionType: step.selectionType || 'product', // Include selectionType
+        products: step.products.map(product => ({
+          id: product.id,
+          position: product.position,
+          variantId: product.variantId, // Include variantId when present
+        })),
       })),
     };
+    
+    // Include combinations if creating a new bundle
+    if (!bundle && pendingCombinations.length > 0) {
+      data.combinations = pendingCombinations;
+    }
 
     console.log("Submitting data:", data);
     await onSubmit(data);
-  }, [formData, steps, validateForm, onSubmit]);
+  }, [formData, steps, validateForm, onSubmit, bundle, pendingCombinations]);
 
   // Update handlers
   const handleDetailsChange = useCallback((details: Partial<Pick<BundleFormData, 'title' | 'status'>>) => {
@@ -324,6 +341,11 @@ export function BundleForm({
       id: "bundle-steps",
       content: `Bundle Steps (${steps.length})${shouldHighlightTab(2) && getNextRequiredField.field === 'steps' ? ' ⚠️' : ''}`,
       panelID: "bundle-steps-panel",
+    },
+    {
+      id: "combination-images",
+      content: "Combination Images",
+      panelID: "combination-images-panel",
     },
   ];
 
@@ -388,6 +410,18 @@ export function BundleForm({
                   errors={errors}
                   touched={touched}
                   layoutType={formData.layoutType}
+                />
+              </Box>
+            )}
+
+            {/* Combination Images Tab */}
+            {selectedTab === 3 && (
+              <Box paddingBlockStart="400">
+                <CombinationImagesTab
+                  bundleId={bundle?.id || ""}
+                  steps={steps}
+                  layoutType={formData.layoutType}
+                  onCombinationsChange={setPendingCombinations}
                 />
               </Box>
             )}
