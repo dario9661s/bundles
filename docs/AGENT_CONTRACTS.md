@@ -23,6 +23,7 @@ interface Bundle {
   steps: BundleStep[]
   createdAt: string // ISO date
   updatedAt: string // ISO date
+  product_id?: string // Shopify Product GID - created automatically
 }
 
 interface BundleStep {

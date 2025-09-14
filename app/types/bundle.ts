@@ -81,6 +81,8 @@ export interface Bundle {
   updatedAt: string; // ISO date
   layoutSettings?: LayoutSettings; // Added per Contract 7
   combinationImages?: string[]; // Added per Contract 10 - Array of metaobject IDs
+  product_id?: string; // Shopify product GID when product exists
+  useCombinationImages?: boolean; // Toggle for using combination images in theme
 }
 
 export interface BundleStep {
@@ -132,6 +134,7 @@ export interface CreateBundleRequest {
   mobileColumns: number;
   desktopColumns: number;
   layoutSettings?: LayoutSettings; // Added per Contract 7
+  useCombinationImages?: boolean; // Toggle for using combination images in theme
   steps: Array<{
     title: string;
     description?: string;

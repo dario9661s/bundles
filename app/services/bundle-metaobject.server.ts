@@ -156,6 +156,7 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
     updatedAt: new Date().toISOString(), // Metaobjects don't have timestamps
     layoutSettings,
     combinationImages: fields.combination_images || [],
+    product_id: fields.product_id,
   };
 }
 
@@ -193,6 +194,9 @@ function bundleToFields(bundle: Partial<Bundle>): Array<{ key: string; value: st
   if (bundle.combinationImages !== undefined) {
     fields.push({ key: "combination_images", value: JSON.stringify(bundle.combinationImages) });
   }
+  if (bundle.product_id !== undefined) {
+    fields.push({ key: "product_id", value: bundle.product_id });
+  }
 
   return fields;
 }
@@ -228,6 +232,7 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
               { key: "steps", type: "json", name: "Steps", required: true }
               { key: "layout_settings", type: "json", name: "Layout Settings", required: false }
               { key: "combination_images", type: "list.metaobject_reference", name: "Combination Images", required: false }
+              { key: "product_id", type: "single_line_text_field", name: "Product ID", required: false }
             ]
           }
         ) {

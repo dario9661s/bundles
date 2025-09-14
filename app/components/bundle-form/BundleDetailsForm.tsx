@@ -7,7 +7,12 @@ import {
   Card,
   InlineStack,
   Text,
+  Link,
+  Icon,
+  Box,
+  Checkbox,
 } from "@shopify/polaris";
+import { ExternalIcon } from "@shopify/polaris-icons";
 import type { BundleDetailsFormProps } from "./BundleFormTypes";
 
 const statusOptions = [
@@ -19,9 +24,12 @@ const statusOptions = [
 export function BundleDetailsForm({
   title,
   status,
+  useCombinationImages,
   onDetailsChange,
   errors,
   touched,
+  productId,
+  isEdit,
 }: BundleDetailsFormProps) {
   const handleTitleChange = useCallback((value: string) => {
     onDetailsChange({ title: value });
@@ -30,8 +38,19 @@ export function BundleDetailsForm({
   const handleStatusChange = useCallback((value: string) => {
     onDetailsChange({ status: value as "active" | "draft" | "inactive" });
   }, [onDetailsChange]);
+  
+  const handleUseCombinationImagesChange = useCallback((value: boolean) => {
+    onDetailsChange({ useCombinationImages: value });
+  }, [onDetailsChange]);
 
   const hasError = touched?.title && errors?.title;
+  
+  // Helper function to extract numeric ID from Shopify GID
+  const extractProductId = (gid: string | undefined): string | null => {
+    if (!gid) return null;
+    const match = gid.match(/\/(\d+)$/);
+    return match ? match[1] : null;
+  };
 
   return (
     <Card>
@@ -64,6 +83,35 @@ export function BundleDetailsForm({
             value={status}
             onChange={handleStatusChange}
           />
+          
+          <Checkbox
+            label="Use combination images"
+            helpText="Show custom images when specific product combinations are selected in your theme"
+            checked={useCombinationImages}
+            onChange={handleUseCombinationImagesChange}
+          />
+          
+          {/* Shopify Product Link - Only show in edit mode when product exists */}
+          {isEdit && productId && (
+            <Box>
+              <BlockStack gap="200">
+                <Text variant="bodyMd" fontWeight="semibold">Shopify Product</Text>
+                <Link
+                  url={`/admin/products/${extractProductId(productId)}`}
+                  external
+                  monochrome
+                >
+                  <InlineStack gap="100" align="center">
+                    <Text variant="bodyMd">View in Shopify Admin</Text>
+                    <Icon source={ExternalIcon} />
+                  </InlineStack>
+                </Link>
+                <Text variant="bodySm" tone="subdued">
+                  Edit product details like price, inventory, and SEO in Shopify admin
+                </Text>
+              </BlockStack>
+            </Box>
+          )}
         </FormLayout>
       </BlockStack>
     </Card>

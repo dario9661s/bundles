@@ -28,6 +28,7 @@ interface BundleSummaryProps {
   isEdit: boolean;
   isSubmitting?: boolean;
   onSubmit: () => void;
+  product_id?: string;
 }
 
 export function BundleSummary({
@@ -43,6 +44,7 @@ export function BundleSummary({
   isEdit,
   isSubmitting = false,
   onSubmit,
+  product_id,
 }: BundleSummaryProps) {
   // Helper functions
   const getTotalProducts = () => {
@@ -315,6 +317,26 @@ export function BundleSummary({
               {getDiscountDisplay()}
             </Text>
           </InlineStack>
+          
+          {/* Product Link - Only show when product exists */}
+          {product_id && (
+            <Box>
+              <BlockStack gap="200">
+                <Text variant="bodySm" tone="subdued">Shopify Product</Text>
+                <Button
+                  url={`/admin/products/${product_id.split('/').pop()}`}
+                  external
+                  fullWidth
+                  variant="secondary"
+                >
+                  Edit in Shopify Admin
+                </Button>
+                <Text variant="caption" tone="subdued">
+                  Edit product details like price and inventory in Shopify admin
+                </Text>
+              </BlockStack>
+            </Box>
+          )}
 
           {/* CTA Button */}
           <Button 

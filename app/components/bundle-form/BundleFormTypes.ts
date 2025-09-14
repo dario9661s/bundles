@@ -55,15 +55,19 @@ export interface BundleFormData {
   mobileColumns: number;
   desktopColumns: number;
   layoutSettings: LayoutSettings;
+  useCombinationImages: boolean;
 }
 
 // Component-specific props
 export interface BundleDetailsFormProps {
   title: string;
   status: Bundle['status'];
-  onDetailsChange: (details: Partial<Pick<BundleFormData, 'title' | 'status'>>) => void;
+  useCombinationImages: boolean;
+  onDetailsChange: (details: Partial<Pick<BundleFormData, 'title' | 'status' | 'useCombinationImages'>>) => void;
   errors?: Record<string, string>;
   touched?: Record<string, boolean>;
+  productId?: string;
+  isEdit?: boolean;
 }
 
 export interface BundleDiscountSettingsProps {

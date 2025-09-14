@@ -12,6 +12,10 @@ import {
   createCombination,
   ensureCombinationDefinitionExists,
 } from "~/services/bundle-combination.server";
+import {
+  createBundleProduct,
+  updateBundleProduct,
+} from "~/services/shopify-product.server";
 import type {
   ListBundlesRequest,
   ListBundlesResponse,
@@ -475,6 +479,32 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
+      // If title or status was updated and bundle has a product, update product
+      if ((data.title !== undefined || data.status !== undefined) && result.bundle.product_id) {
+        try {
+          const productUpdates: any = {};
+          
+          if (data.title !== undefined) {
+            productUpdates.title = data.title;
+          }
+          
+          if (data.status !== undefined) {
+            productUpdates.status = data.status;
+          }
+          
+          const productUpdateResult = await updateBundleProduct(
+            admin,
+            result.bundle.product_id,
+            productUpdates
+          );
+
+          if (!productUpdateResult.success) {
+            console.error("Failed to update product:", productUpdateResult.errors);
+          }
+        } catch (error) {
+          console.error("Error updating product:", error);
+        }
+      }
 
       return json({ bundle: result.bundle });
     }
@@ -605,6 +635,33 @@ export async function action({ request, params }: ActionFunctionArgs) {
             // Don't fail the whole operation, combinations were created successfully
           }
         }
+      }
+
+      // Create Shopify product for the bundle
+      try {
+        const productResult = await createBundleProduct(
+          admin,
+          result.bundle.title,
+          result.bundle.handle,
+          result.bundle.status
+        );
+
+        if (productResult.productId) {
+          // Update bundle with product ID
+          const updateResult = await updateBundle(admin, result.bundle.id, {
+            product_id: productResult.productId,
+          });
+
+          if (updateResult.bundle) {
+            result.bundle = updateResult.bundle;
+          }
+        } else {
+          // Log error but don't fail bundle creation
+          console.error("Failed to create Shopify product for bundle:", productResult.errors);
+        }
+      } catch (error) {
+        // Log error but don't fail bundle creation
+        console.error("Error creating Shopify product for bundle:", error);
       }
 
       return json({ bundle: result.bundle }, { status: 201 });

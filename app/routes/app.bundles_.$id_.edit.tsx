@@ -303,6 +303,7 @@ export default function EditBundlePage() {
               touched={formState.touched}
               isEdit={true}
               isSubmitting={isSubmitting}
+              product_id={bundle.product_id}
               onSubmit={() => {
                 // Find and click the actual form submit button
                 const form = document.querySelector('form');

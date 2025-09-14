@@ -97,6 +97,7 @@ export function BundleForm({
         animationStyle: "slide",
       },
     },
+    useCombinationImages: bundle?.useCombinationImages || false,
   });
 
   // Steps state
@@ -268,6 +269,7 @@ export function BundleForm({
       mobileColumns: formData.mobileColumns,
       desktopColumns: formData.desktopColumns,
       layoutSettings,
+      useCombinationImages: formData.useCombinationImages,
       steps: steps.map((step, index) => ({
         title: step.title,
         description: step.description || undefined,
@@ -294,7 +296,7 @@ export function BundleForm({
   }, [formData, steps, validateForm, onSubmit, bundle, pendingCombinations]);
 
   // Update handlers
-  const handleDetailsChange = useCallback((details: Partial<Pick<BundleFormData, 'title' | 'status'>>) => {
+  const handleDetailsChange = useCallback((details: Partial<Pick<BundleFormData, 'title' | 'status' | 'useCombinationImages'>>) => {
     setFormData(prev => ({ ...prev, ...details }));
     if (details.title !== undefined) {
       markFieldTouched('title');
@@ -367,9 +369,12 @@ export function BundleForm({
         <BundleDetailsForm
           title={formData.title}
           status={formData.status}
+          useCombinationImages={formData.useCombinationImages}
           onDetailsChange={handleDetailsChange}
           errors={errors}
           touched={touched}
+          productId={bundle?.product_id}
+          isEdit={!!bundle}
         />
 
         {/* Tabbed Content */}
