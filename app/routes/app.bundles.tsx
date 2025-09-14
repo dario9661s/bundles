@@ -13,6 +13,14 @@ import { useFetcher } from "@remix-run/react";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   
+  // Ensure metaobject definition is up to date (temporary - remove after first run)
+  try {
+    const { ensureMetaobjectDefinitionExists } = await import("~/services/bundle-metaobject.server");
+    await ensureMetaobjectDefinitionExists(admin);
+  } catch (error) {
+    console.error("Failed to update metaobject definition:", error);
+  }
+  
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get("page") || "1");
   const limit = parseInt(url.searchParams.get("limit") || "7");

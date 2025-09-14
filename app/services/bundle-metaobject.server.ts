@@ -157,6 +157,7 @@ function metaobjectToBundle(metaobject: BundleMetaobject): Bundle {
     layoutSettings,
     combinationImages: fields.combination_images || [],
     product_id: fields.product_id,
+    useCombinationImages: fields.use_combination_images || false,
   };
 }
 
@@ -197,6 +198,9 @@ function bundleToFields(bundle: Partial<Bundle>): Array<{ key: string; value: st
   if (bundle.product_id !== undefined) {
     fields.push({ key: "product_id", value: bundle.product_id });
   }
+  if (bundle.useCombinationImages !== undefined) {
+    fields.push({ key: "use_combination_images", value: bundle.useCombinationImages.toString() });
+  }
 
   return fields;
 }
@@ -207,6 +211,12 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
       metaobjectDefinitionByType(type: "${METAOBJECT_TYPE}") {
         id
         type
+        fieldDefinitions {
+          key
+          type {
+            name
+          }
+        }
       }
     }
   `;
@@ -233,6 +243,7 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
               { key: "layout_settings", type: "json", name: "Layout Settings", required: false }
               { key: "combination_images", type: "list.metaobject_reference", name: "Combination Images", required: false }
               { key: "product_id", type: "single_line_text_field", name: "Product ID", required: false }
+              { key: "use_combination_images", type: "boolean", name: "Use Combination Images", required: false }
             ]
           }
         ) {
@@ -248,7 +259,65 @@ export async function ensureMetaobjectDefinitionExists(admin: AdminApiContext) {
       }
     `;
 
-    await admin.graphql(createDefinition);
+    const createResponse = await admin.graphql(createDefinition);
+    const createResult = await createResponse.json();
+    
+    if (createResult.data?.metaobjectDefinitionCreate?.userErrors?.length > 0) {
+      console.error("Failed to create metaobject definition:", createResult.data.metaobjectDefinitionCreate.userErrors);
+      throw new Error(`Failed to create metaobject definition: ${createResult.data.metaobjectDefinitionCreate.userErrors[0].message}`);
+    }
+    
+    console.log("Metaobject definition created successfully");
+  } else {
+    // Check if product_id field exists
+    const existingDefinition = result.data.metaobjectDefinitionByType;
+    const hasProductIdField = existingDefinition.fieldDefinitions.some(
+      (field: any) => field.key === "product_id"
+    );
+    
+    if (!hasProductIdField) {
+      console.log("product_id field missing, updating metaobject definition...");
+      
+      const updateDefinition = `
+        mutation UpdateBundleDefinition($id: ID!) {
+          metaobjectDefinitionUpdate(
+            id: $id
+            definition: {
+              fieldDefinitions: [
+                { 
+                  create: {
+                    key: "product_id", 
+                    type: "single_line_text_field", 
+                    name: "Product ID", 
+                    required: false
+                  }
+                }
+              ]
+            }
+          ) {
+            metaobjectDefinition {
+              id
+              type
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+      
+      const updateResponse = await admin.graphql(updateDefinition, {
+        variables: { id: existingDefinition.id }
+      });
+      const updateResult = await updateResponse.json();
+      
+      if (updateResult.data?.metaobjectDefinitionUpdate?.userErrors?.length > 0) {
+        console.error("Failed to add product_id field:", updateResult.data.metaobjectDefinitionUpdate.userErrors);
+      } else {
+        console.log("Successfully added product_id field to metaobject definition");
+      }
+    }
   }
 }
 

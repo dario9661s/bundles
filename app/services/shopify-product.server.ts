@@ -111,15 +111,21 @@ export async function createBundleProduct(
     const response = await admin.graphql(mutation, { variables });
     const result = (await response.json()) as CreateProductResponse;
 
+    console.log("GraphQL productCreate response:", JSON.stringify(result, null, 2));
+
     if (result.data.productCreate.userErrors.length > 0) {
+      console.error("Product creation user errors:", result.data.productCreate.userErrors);
       return {
         productId: null,
         errors: result.data.productCreate.userErrors.map((e) => e.message),
       };
     }
 
+    const productId = result.data.productCreate.product?.id || null;
+    console.log("Created product with ID:", productId);
+
     return {
-      productId: result.data.productCreate.product?.id || null,
+      productId,
       errors: [],
     };
   } catch (error) {

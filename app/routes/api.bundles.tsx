@@ -639,6 +639,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       // Create Shopify product for the bundle
       try {
+        console.log("Creating Shopify product for bundle:", {
+          title: result.bundle.title,
+          handle: result.bundle.handle,
+          status: result.bundle.status,
+          bundleId: result.bundle.id
+        });
+        
         const productResult = await createBundleProduct(
           admin,
           result.bundle.title,
@@ -646,7 +653,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
           result.bundle.status
         );
 
+        console.log("Product creation result:", {
+          productId: productResult.productId,
+          errors: productResult.errors,
+          hasProductId: !!productResult.productId
+        });
+
         if (productResult.productId) {
+          console.log("Updating bundle with product ID:", productResult.productId);
+          
           // Update bundle with product ID
           const updateResult = await updateBundle(admin, result.bundle.id, {
             product_id: productResult.productId,
@@ -654,6 +669,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
           if (updateResult.bundle) {
             result.bundle = updateResult.bundle;
+            console.log("Bundle updated with product_id:", result.bundle.product_id);
+          } else {
+            console.error("Failed to update bundle with product ID:", updateResult.errors);
           }
         } else {
           // Log error but don't fail bundle creation
